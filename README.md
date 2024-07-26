@@ -29,8 +29,8 @@ You can install the required libraries using pip:
 
 `python main.py <base_url> <depth>`
 
-- <base_url>: The base URL of the website you want to scrape.
-- <depth>: The maximum crawling depth (must be a positive integer).
+- `base_url`: The base URL of the website you want to scrape.
+- `depth`: The maximum crawling depth (must be a positive integer).
 
 ### Example
 
