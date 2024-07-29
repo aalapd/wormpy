@@ -4,25 +4,50 @@ import xml.etree.ElementTree as ET
 from urllib.parse import urljoin
 import logging
 
-def fetch_sitemap(url):
-    try:
-        logging.info(f"Attempting to fetch sitemap index from {url}")
-        response = requests.get(urljoin(url, 'sitemap_index.xml'))
-        response.raise_for_status()
-        logging.info("Sitemap index fetched successfully")
-        return response.text
-    except requests.RequestException as e:
-        logging.warning(f"Failed to fetch sitemap index: {e}")
+import requests
+from urllib.parse import urljoin
+import logging
+
+def fetch_sitemap(url, max_redirects=5):
+    sitemap_locations = [
+        'sitemap.xml',
+        'sitemap_index.xml',
+        'sitemap/',
+        'sitemap1.xml',
+        'post-sitemap.xml',
+        'page-sitemap.xml',
+        'sitemapindex.xml',
+        'sitemap-index.xml',
+        'wp-sitemap.xml'
+    ]
+    
+    with requests.Session() as session:
+        session.max_redirects = max_redirects
+        
+        for location in sitemap_locations:
+            try:
+                full_url = urljoin(url, location)
+                logging.info(f"Attempting to fetch sitemap from {full_url}")
+                response = session.get(full_url, allow_redirects=True)
+                response.raise_for_status()
+                logging.info(f"Sitemap fetched successfully from {response.url}")
+                return response.text
+            except requests.RequestException as e:
+                logging.warning(f"Failed to fetch sitemap from {full_url}: {e}")
+        
+        # If we've exhausted all options, try to fetch the root URL
         try:
-            logging.info(f"Attempting to fetch sitemap from {url}")
-            response = requests.get(urljoin(url, 'sitemap.xml'))
+            logging.info(f"Attempting to fetch root URL {url}")
+            response = session.get(url, allow_redirects=True)
             response.raise_for_status()
-            logging.info("Sitemap fetched successfully")
-            return response.text
+            if 'text/xml' in response.headers.get('Content-Type', ''):
+                logging.info(f"Sitemap found at root URL {response.url}")
+                return response.text
         except requests.RequestException as e:
-            logging.error(f"Failed to fetch sitemap: {e}")
-            logging.info("Falling back to HTML parsing.")
-            return None
+            logging.warning(f"Failed to fetch root URL {url}: {e}")
+
+    logging.error("Failed to fetch any sitemap. Falling back to HTML parsing.")
+    return None
 
 def parse_sitemap(xml_content, base_url):
     if xml_content is None:
