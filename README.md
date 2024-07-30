@@ -4,6 +4,8 @@
 
 Wormpy is a Python-based tool designed to scrape websites for content. It can extract URLs from sitemaps or fallback to HTML parsing if a sitemap is not available. The scraped content is saved to a timestamped text file within a `scrapes` directory.
 
+Check out the [tutorial](https://medium.com/@aalapdavjekar/7-lessons-i-learned-while-writing-code-with-ai-b59414181da6) on how I built this.
+
 ## Features
 
 - Fetches and parses sitemaps (`sitemap_index.xml` or `sitemap.xml`).
