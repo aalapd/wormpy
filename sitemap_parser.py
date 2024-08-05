@@ -1,52 +1,28 @@
 import requests
 from bs4 import BeautifulSoup
 import xml.etree.ElementTree as ET
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 import logging
 
-import requests
-from urllib.parse import urljoin
-import logging
-
-def fetch_sitemap(url, max_redirects=5):
+def fetch_sitemap(base_url):
     sitemap_locations = [
-        'sitemap.xml',
-        'sitemap_index.xml',
-        'sitemap/',
-        'sitemap1.xml',
-        'post-sitemap.xml',
-        'page-sitemap.xml',
-        'sitemapindex.xml',
-        'sitemap-index.xml',
-        'wp-sitemap.xml'
+        'sitemap.xml', 'sitemap_index.xml', 'sitemap/', 'sitemap1.xml',
+        'post-sitemap.xml', 'page-sitemap.xml', 'sitemapindex.xml',
+        'sitemap-index.xml', 'wp-sitemap.xml'
     ]
     
-    with requests.Session() as session:
-        session.max_redirects = max_redirects
-        
-        for location in sitemap_locations:
-            try:
-                full_url = urljoin(url, location)
-                logging.info(f"Attempting to fetch sitemap from {full_url}")
-                response = session.get(full_url, allow_redirects=True)
-                response.raise_for_status()
-                logging.info(f"Sitemap fetched successfully from {response.url}")
-                return response.text
-            except requests.RequestException as e:
-                logging.warning(f"Failed to fetch sitemap from {full_url}: {e}")
-        
-        # If we've exhausted all options, try to fetch the root URL
+    for location in sitemap_locations:
+        full_url = urljoin(base_url, location)
         try:
-            logging.info(f"Attempting to fetch root URL {url}")
-            response = session.get(url, allow_redirects=True)
+            response = requests.get(full_url)
             response.raise_for_status()
-            if 'text/xml' in response.headers.get('Content-Type', ''):
-                logging.info(f"Sitemap found at root URL {response.url}")
+            if 'xml' in response.headers.get('Content-Type', ''):
+                logging.info(f"Sitemap fetched from {full_url}")
                 return response.text
-        except requests.RequestException as e:
-            logging.warning(f"Failed to fetch root URL {url}: {e}")
-
-    logging.error("Failed to fetch any sitemap. Falling back to HTML parsing.")
+        except requests.RequestException:
+            continue
+    
+    logging.warning("No sitemap found. Falling back to HTML parsing.")
     return None
 
 def parse_sitemap(xml_content, base_url):
@@ -55,31 +31,29 @@ def parse_sitemap(xml_content, base_url):
     
     try:
         root = ET.fromstring(xml_content)
-        urls = []
+        urls = set()
         for elem in root.iter():
             if 'loc' in elem.tag:
                 url = elem.text.strip()
                 if url.endswith('.xml'):
-                    urls.extend(parse_sub_sitemap(url))
-                else:
-                    urls.append(url)
-        logging.info("Sitemap parsed successfully")
-        return urls
-    except ET.ParseError as e:
-        logging.error(f"Error parsing XML: {e}")
-        logging.info("Falling back to HTML parsing.")
+                    urls.update(parse_sub_sitemap(url, base_url))
+                elif is_valid_url(url, base_url):
+                    urls.add(url)
+        return list(urls)
+    except ET.ParseError:
+        logging.error("Error parsing XML. Falling back to HTML parsing.")
         return parse_html_for_links(base_url)
 
-def parse_sub_sitemap(url):
+def parse_sub_sitemap(url, base_url):
     try:
-        logging.info(f"Attempting to fetch and parse sub-sitemap from {url}")
         response = requests.get(url)
         response.raise_for_status()
         root = ET.fromstring(response.text)
-        return [elem.text.strip() for elem in root.iter() if 'loc' in elem.tag]
-    except (requests.RequestException, ET.ParseError) as e:
-        logging.error(f"Error parsing sub-sitemap {url}: {e}")
-        return []
+        return {elem.text.strip() for elem in root.iter() 
+                if 'loc' in elem.tag and is_valid_url(elem.text.strip(), base_url)}
+    except (requests.RequestException, ET.ParseError):
+        logging.error(f"Error parsing sub-sitemap {url}")
+        return set()
 
 def get_all_urls(base_url):
     sitemap = fetch_sitemap(base_url)
@@ -87,14 +61,20 @@ def get_all_urls(base_url):
 
 def parse_html_for_links(url):
     try:
-        logging.info(f"Attempting to fetch HTML content from {url}")
         response = requests.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
-        links = [urljoin(url, a['href']) for a in soup.find_all('a', href=True)]
-        unique_links = list(set(links))  # Remove duplicates
-        logging.info(f"Found {len(unique_links)} unique links in HTML content")
-        return unique_links
-    except requests.RequestException as e:
-        logging.error(f"Error fetching HTML from {url}: {e}")
+        links = {urljoin(url, a['href']) for a in soup.find_all('a', href=True) 
+                 if is_valid_url(urljoin(url, a['href']), url)}
+        logging.info(f"Found {len(links)} unique links in HTML content")
+        return list(links)
+    except requests.RequestException:
+        logging.error(f"Error fetching HTML from {url}")
         return []
+
+def is_valid_url(url, base_url):
+    parsed_url = urlparse(url)
+    parsed_base = urlparse(base_url)
+    return (parsed_url.netloc == parsed_base.netloc and
+            parsed_url.path.split('.')[-1].lower() not in 
+            ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'mp3', 'mp4', 'wav', 'avi', 'mov'])
