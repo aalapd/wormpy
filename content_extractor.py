@@ -19,21 +19,20 @@ def extract_text(html):
     try:
         soup = BeautifulSoup(html, 'html.parser')
         
-        # Remove script and style elements
-        for script in soup(["script", "style"]):
-            script.decompose()
+        # Remove script, style, and other unwanted elements
+        for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside']):
+            element.decompose()
+        
+        # Remove hidden elements
+        for hidden in soup.find_all(style=lambda value: value and "display:none" in value):
+            hidden.decompose()
         
         # Get text
-        text = soup.get_text()
+        text = soup.get_text(separator='\n', strip=True)
         
-        # Break into lines and remove leading and trailing space on each
+        # Remove excessive newlines and whitespace
         lines = (line.strip() for line in text.splitlines())
-        
-        # Break multi-headlines into a line each
-        chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-        
-        # Drop blank lines
-        text = '\n'.join(chunk for chunk in chunks if chunk)
+        text = '\n'.join(line for line in lines if line)
         
         logging.info("Successfully extracted text from HTML content")
         return text
@@ -43,4 +42,4 @@ def extract_text(html):
 
 def process_page(url):
     html = fetch_page(url)
-    return extract_text(html)
+    return extract_text(html), html  # Return both extracted text and raw HTML
