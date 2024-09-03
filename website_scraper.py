@@ -1,10 +1,10 @@
-from urllib.parse import urljoin, urlparse, parse_qs
-from bs4 import BeautifulSoup
+import logging
 import requests
-from content_extractor import process_page
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse, parse_qs
+from content_extractor import extract_text_from_html
 from file_handler import write_to_file
 from utils import is_valid_url, is_image_file_extension, get_domain
-import logging
 
 def is_suspicious_url(url):
     parsed_url = urlparse(url)
@@ -36,7 +36,8 @@ def normalize_url(url):
     parsed = urlparse(url)
     return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
 
-def scrape_website(base_url, max_depth, output_file):
+def scrape_website(base_url, max_depth, output_file, urls_only=False):
+    all_discovered_urls = set()
     processed_urls = set()
     urls_to_process = [(base_url, 0)]  # (url, depth)
 
@@ -44,7 +45,7 @@ def scrape_website(base_url, max_depth, output_file):
         current_url, depth = urls_to_process.pop(0)
         normalized_url = normalize_url(current_url)
         
-        if normalized_url in processed_urls or depth > max_depth:
+        if normalized_url in processed_urls:
             continue
 
         logging.info(f"Processing URL (depth {depth}): {current_url}")
@@ -55,23 +56,34 @@ def scrape_website(base_url, max_depth, output_file):
                 continue
 
         try:
-            text_content, html_content = process_page(current_url)
-            
-            write_to_file(output_file, f"\n\n--- Content from {current_url} ---\n\n")
-            write_to_file(output_file, text_content)
-            
+            response = requests.get(current_url)
+            html_content = response.text
+            soup = BeautifulSoup(html_content, 'html.parser')
+
+            if not urls_only:
+                text_content = extract_text_from_html(html_content)
+                write_to_file(output_file, f"\n\n--- Content from {current_url} ---\n\n")
+                write_to_file(output_file, text_content)
+
             processed_urls.add(current_url)
+            all_discovered_urls.add(current_url)
             logging.info(f"Successfully processed {current_url}")
 
+            new_urls = {urljoin(current_url, a['href']) for a in soup.find_all('a', href=True) 
+                        if is_valid_url(urljoin(current_url, a['href']), base_url)}
+            all_discovered_urls.update(new_urls)
+
             if depth < max_depth:
-                soup = BeautifulSoup(html_content, 'html.parser')
-                new_urls = {urljoin(current_url, a['href']) for a in soup.find_all('a', href=True) 
-                            if is_valid_url(urljoin(current_url, a['href']), base_url)}
                 urls_to_process.extend((url, depth + 1) for url in new_urls if url not in processed_urls)
+
         except Exception as e:
             error_message = f"\n\nError processing {current_url}: {str(e)}\n\n"
             write_to_file(output_file, error_message)
             logging.error(f"Error processing {current_url}: {e}")
+
+    if urls_only:
+        for url in all_discovered_urls:
+            write_to_file(output_file, f"{url}\n")
 
     return processed_urls
 
