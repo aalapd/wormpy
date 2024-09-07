@@ -16,6 +16,9 @@ Read the [tutorial](https://medium.com/@aalapdavjekar/7-lessons-i-learned-while-
 - Flexible logging
 - Content saved to timestamped files in a `scrapes` directory
 - Command-line interface for easy use
+- Option to return only URLs instead of content
+- Image URL detection and skipping
+- Suspicious URL detection
 
 ## Requirements
 
@@ -38,12 +41,13 @@ pip install requests beautifulsoup4 PyPDF2
 3. Run the program with the following command:
 
 ```
-python main.py <url> <depth> [--log LOG_LEVEL] [--output OUTPUT_FILE]
+python main.py <url> <depth> [--urls-only] [--log LOG_LEVEL] [--output OUTPUT_FILE]
 ```
 
 Arguments:
 - `url`: Base URL of the website to scrape (required)
-- `depth`: Maximum crawling depth (required, must be a positive integer)
+- `depth`: Maximum crawling depth (required, must be a non-negative integer)
+- `--urls-only`: Return only URLs instead of content (optional)
 - `--log`: Set the logging level (optional, default is INFO)
 - `--output`: Specify the output file name (optional)
 
@@ -57,8 +61,9 @@ python main.py https://www.example.com 3 --log DEBUG --output example_scrape.txt
 - `main.py`: Entry point of the application
 - `website_scraper.py`: Core scraping logic
 - `sitemap_parser.py`: Handles sitemap parsing
-- `content_extractor.py`: Extracts text from HTML and PDF content
+- `content_processor.py`: Processes and extracts text from HTML and PDF content
 - `url_processor.py`: Processes URLs and extracts links
+- `pdf_processor.py`: Handles PDF-specific processing (for future functionality)
 - `file_handler.py`: Manages file operations
 - `utils.py`: Utility functions
 - `config.py`: Configuration settings
@@ -74,6 +79,12 @@ To be respectful of server resources, Wormpy implements a rate limiter that adds
 ## PDF Handling
 
 Wormpy can detect and extract text from PDF files, both from local files and URLs.
+
+## URL Processing
+
+- The tool now offers an option to return only URLs instead of content.
+- It detects and skips image URLs to avoid unnecessary processing.
+- Suspicious URLs are identified and handled appropriately.
 
 ## Contributing
 
