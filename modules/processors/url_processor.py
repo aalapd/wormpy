@@ -2,6 +2,7 @@ from urllib.parse import urljoin, urlparse, parse_qs
 from bs4 import BeautifulSoup
 import requests
 import logging
+from ..utils import is_image_file_extension
 
 def normalize_url(url):
     parsed = urlparse(url)
@@ -21,16 +22,6 @@ def is_image_content_type(url):
     except requests.RequestException:
         logging.error(f"Error checking content type for {url}")
         return False
-
-def is_valid_url(url, base_url):
-    parsed_url = urlparse(url)
-    parsed_base = urlparse(base_url)
-    return (parsed_url.netloc == parsed_base.netloc and
-            not is_image_file_extension(parsed_url.path))
-
-def is_image_file_extension(path):
-    image_extensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'mp3', 'mp4', 'wav', 'avi', 'mov']
-    return path.split('.')[-1].lower() in image_extensions
 
 def extract_urls(content, base_url, content_type='text/html'):
     try:

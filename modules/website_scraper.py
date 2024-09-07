@@ -1,7 +1,8 @@
 import logging
-from .processors.url_processor import normalize_url, is_suspicious_url, is_image_content_type, is_valid_url, extract_urls
+from .processors.url_processor import normalize_url, is_suspicious_url, extract_urls
 from .processors.content_processor import process_page
 from .file_handler import write_to_file
+from .utils import is_image_content_type, is_valid_url
 
 def scrape_website(base_url, max_depth, output_file, urls_only=False):
     all_discovered_urls = set()
