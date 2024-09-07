@@ -1,9 +1,12 @@
 import requests
-from bs4 import BeautifulSoup
 import time
+import io
 import logging
 import random
-from .pdf_processor import extract_text_from_pdf, is_pdf_url
+import PyPDF2
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse
+from .url_processor import is_pdf_url
 
 class RateLimiter:
     def __init__(self, min_delay=1, max_delay=5):
@@ -41,6 +44,26 @@ def fetch_page(url, max_retries=3, backoff_factor=2):
                 raise
 
 def extract_text_from_html(html):
+    """
+    Extract text content from HTML, removing unwanted elements and formatting.
+
+    This function parses HTML content, removes unwanted elements (such as scripts, 
+    styles, navigation, headers, footers, asides, and hidden elements), and 
+    extracts the remaining text content.
+
+    Args:
+        html (str): The HTML content to process.
+
+    Returns:
+        str: The extracted and cleaned text content.
+
+    Raises:
+        Exception: If there's an error during the extraction process.
+
+    Logs:
+        - INFO: When text is successfully extracted.
+        - ERROR: When an error occurs during extraction.
+    """
     try:
         soup = BeautifulSoup(html, 'html.parser')
         
@@ -51,6 +74,10 @@ def extract_text_from_html(html):
         # Remove hidden elements
         for hidden in soup.find_all(style=lambda value: value and "display:none" in value):
             hidden.decompose()
+
+        # Remove elements with "hidden" in their class names
+        for hidden_class in soup.find_all(class_=lambda x: x and 'hidden' in x):
+            hidden_class.decompose()
         
         # Get text
         text = soup.get_text(separator='\n', strip=True)
@@ -65,13 +92,53 @@ def extract_text_from_html(html):
         logging.error(f"Error extracting text from HTML content: {e}")
         raise
 
+def extract_text_from_pdf(file_path_or_url):
+    """
+    Extract text content from a PDF file.
+    
+    :param file_path_or_url: Local file path or URL of the PDF file
+    :return: Extracted text content as a string
+    """
+    pdf_file = None
+    try:
+        # Determine if the input is a URL or local file path
+        parsed = urlparse(file_path_or_url)
+        if parsed.scheme in ('http', 'https'):
+            response = requests.get(file_path_or_url)
+            response.raise_for_status()
+            pdf_file = io.BytesIO(response.content)
+        else:
+            pdf_file = open(file_path_or_url, 'rb')
+
+        # Create a PDF reader object
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+        
+        # Extract text from all pages
+        text_content = "\n".join(page.extract_text() for page in pdf_reader.pages)
+        
+        logging.info(f"Successfully extracted text from PDF: {file_path_or_url}")
+        return text_content.strip()
+
+    except requests.RequestException as e:
+        logging.error(f"Error fetching PDF from URL {file_path_or_url}: {str(e)}")
+        return f"Error fetching PDF: {str(e)}"
+    except PyPDF2.errors.PdfReadError as e:
+        logging.error(f"Error reading PDF {file_path_or_url}: {str(e)}")
+        return f"Error reading PDF: {str(e)}"
+    except Exception as e:
+        logging.error(f"Unexpected error processing PDF {file_path_or_url}: {str(e)}")
+        return f"Unexpected error: {str(e)}"
+    finally:
+        if pdf_file and not isinstance(pdf_file, io.BytesIO):
+            pdf_file.close()
+
 def process_page(url):
     content, content_type = fetch_page(url)
-    
-    if 'application/pdf' in content_type.lower() or is_pdf_url(url):
+    if content_type.lower().startswith('text/html'):
+        extracted_text = extract_text_from_html(content.decode('utf-8'))
+    elif content_type.lower() == 'application/pdf' or is_pdf_url(url):
         extracted_text = extract_text_from_pdf(url)
-        return extracted_text, content, content_type  # Return extracted text, raw content, and content type
     else:
-        html = content.decode('utf-8', errors='ignore')
-        extracted_text = extract_text_from_html(html)
-        return extracted_text, html, content_type  # Return extracted text, raw HTML, and content type
+        extracted_text = f"Unsupported content type: {content_type}"
+    
+    return extracted_text, content, content_type

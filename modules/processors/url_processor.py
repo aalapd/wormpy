@@ -6,7 +6,8 @@ from ..utils import is_image_file_extension
 
 def normalize_url(url):
     parsed = urlparse(url)
-    return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+    normalized = f"{parsed.scheme}://{parsed.netloc}{parsed.path.rstrip('/')}"
+    return normalized
 
 def is_suspicious_url(url):
     parsed_url = urlparse(url)
@@ -21,6 +22,22 @@ def is_image_content_type(url):
         return content_type.startswith('image/')
     except requests.RequestException:
         logging.error(f"Error checking content type for {url}")
+        return False
+    
+def is_pdf_url(url):
+    """
+    Check if the given URL points to a PDF file.
+    
+    :param url: URL to check
+    :return: Boolean indicating if the URL is likely a PDF
+    """
+    try:
+        if url.lower().endswith('.pdf'):
+            return True
+        response = requests.head(url, allow_redirects=True)
+        return 'application/pdf' in response.headers.get('Content-Type', '').lower()
+    except requests.RequestException:
+        logging.warning(f"Error checking content type for {url}")
         return False
 
 def extract_urls(content, base_url, content_type='text/html'):

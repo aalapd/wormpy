@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import xml.etree.ElementTree as ET
 from urllib.parse import urljoin
-from utils import is_valid_url
+from .utils import is_valid_url
 import logging
 
 def get_all_urls(base_url):

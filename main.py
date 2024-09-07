@@ -36,8 +36,12 @@ def main():
         return
 
     try:
-        output_file = args.output if args.output else initialize_output_file(base_url)
-        scrape_website(base_url, max_depth, output_file, urls_only)
+        output_file = args.output 
+        if args.output: 
+            filename = initialize_output_file(output_file) 
+        else: 
+            filename = initialize_output_file(base_url)
+        scrape_website(base_url, max_depth, filename, urls_only)
         finalize_file(output_file)
         logging.info(f"Scraping complete. Output saved to {output_file}")
     except Exception as e:
