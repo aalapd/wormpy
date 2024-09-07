@@ -24,14 +24,22 @@ Read the [tutorial](https://medium.com/@aalapdavjekar/7-lessons-i-learned-while-
 
 - Python 3.x
 - Required libraries:
-  - requests
-  - beautifulsoup4
-  - PyPDF2
+  - beautifulsoup4==4.12.3
+  - certifi==2024.7.4
+  - charset-normalizer==3.3.2
+  - idna==3.7
+  - parameterized==0.9.0
+  - PyPDF2==3.0.1
+  - PyYAML==6.0.2
+  - requests==2.32.3
+  - responses==0.25.3
+  - soupsieve==2.5
+  - urllib3==2.2.2
 
 Install the required libraries using pip:
 
 ```
-pip install requests beautifulsoup4 PyPDF2
+pip install -r requirements.txt
 ```
 
 ## Usage
@@ -53,7 +61,7 @@ Arguments:
 
 Example:
 ```
-python main.py https://www.example.com 3 --log DEBUG --output example_scrape.txt
+python main.py https://www.example.com 1 --log DEBUG --output example_scrape.txt
 ```
 
 ## Key Components
