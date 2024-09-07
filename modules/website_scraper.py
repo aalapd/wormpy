@@ -1,40 +1,7 @@
 import logging
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse, parse_qs
-from content_extractor import extract_text_from_html
-from file_handler import write_to_file
-from utils import is_valid_url, is_image_file_extension, get_domain
-
-def is_suspicious_url(url):
-    parsed_url = urlparse(url)
-    query_params = parse_qs(parsed_url.query)
-    suspicious_params = ['itemId', 'imageId', 'galleryId']
-    return any(param in query_params for param in suspicious_params) or is_image_file_extension(parsed_url.path)
-
-def is_image_content_type(url):
-    try:
-        response = requests.head(url)
-        content_type = response.headers.get('Content-Type', '')
-        return content_type.startswith('image/')
-    except requests.RequestException:
-        logging.error(f"Error checking content type for {url}")
-        return False
-
-def is_image_heavy_page(html_content, text_content):
-    soup = BeautifulSoup(html_content, 'html.parser')
-    view_fullsize_count = text_content.lower().count("view fullsize")
-    
-    # Calculate text-to-HTML ratio
-    text_length = len(text_content)
-    html_length = len(html_content)
-    text_to_html_ratio = text_length / html_length if html_length > 0 else 0
-    
-    return view_fullsize_count >= 5 or text_to_html_ratio < 0.1
-
-def normalize_url(url):
-    parsed = urlparse(url)
-    return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+from .processors.url_processor import normalize_url, is_suspicious_url, is_image_content_type, is_valid_url, extract_urls
+from .processors.content_processor import process_page
+from .file_handler import write_to_file
 
 def scrape_website(base_url, max_depth, output_file, urls_only=False):
     all_discovered_urls = set()
@@ -56,12 +23,9 @@ def scrape_website(base_url, max_depth, output_file, urls_only=False):
                 continue
 
         try:
-            response = requests.get(current_url)
-            html_content = response.text
-            soup = BeautifulSoup(html_content, 'html.parser')
+            text_content, raw_content, content_type = process_page(current_url)
 
             if not urls_only:
-                text_content = extract_text_from_html(html_content)
                 write_to_file(output_file, f"\n\n--- Content from {current_url} ---\n\n")
                 write_to_file(output_file, text_content)
 
@@ -69,8 +33,7 @@ def scrape_website(base_url, max_depth, output_file, urls_only=False):
             all_discovered_urls.add(current_url)
             logging.info(f"Successfully processed {current_url}")
 
-            new_urls = {urljoin(current_url, a['href']) for a in soup.find_all('a', href=True) 
-                        if is_valid_url(urljoin(current_url, a['href']), base_url)}
+            new_urls = set(url for url in extract_urls(raw_content, current_url, content_type) if is_valid_url(url, base_url))
             all_discovered_urls.update(new_urls)
 
             if depth < max_depth:

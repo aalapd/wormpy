@@ -2,9 +2,8 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import logging
-import PyPDF2
-import io
 import random
+from .pdf_processor import extract_text_from_pdf, is_pdf_url
 
 class RateLimiter:
     def __init__(self, min_delay=1, max_delay=5):
@@ -66,31 +65,13 @@ def extract_text_from_html(html):
         logging.error(f"Error extracting text from HTML content: {e}")
         raise
 
-def extract_text_from_pdf(pdf_content):
-    try:
-        pdf_file = io.BytesIO(pdf_content)
-        pdf_reader = PyPDF2.PdfReader(pdf_file)
-        
-        text_content = ""
-        for page in pdf_reader.pages:
-            text_content += page.extract_text() + "\n"
-        
-        logging.info("Successfully extracted text from PDF content")
-        return text_content.strip()
-    except Exception as e:
-        logging.error(f"Error extracting text from PDF content: {e}")
-        raise
-
 def process_page(url):
     content, content_type = fetch_page(url)
     
-    if 'application/pdf' in content_type.lower():
-        extracted_text = extract_text_from_pdf(content)
-        return extracted_text, content  # Return extracted text and raw PDF content
+    if 'application/pdf' in content_type.lower() or is_pdf_url(url):
+        extracted_text = extract_text_from_pdf(url)
+        return extracted_text, content, content_type  # Return extracted text, raw content, and content type
     else:
         html = content.decode('utf-8', errors='ignore')
         extracted_text = extract_text_from_html(html)
-        return extracted_text, html  # Return extracted text and raw HTML
-
-def is_pdf_url(url):
-    return url.lower().endswith('.pdf') or 'application/pdf' in requests.head(url).headers.get('Content-Type', '')
+        return extracted_text, html, content_type  # Return extracted text, raw HTML, and content type

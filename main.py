@@ -1,8 +1,8 @@
 import argparse
 import logging
-from website_scraper import scrape_website
-from utils import is_valid_url
-from file_handler import initialize_output_file, finalize_file
+from modules.website_scraper import scrape_website
+from modules.utils import is_valid_url
+from modules.file_handler import initialize_output_file, finalize_file
 
 def setup_logging(log_level):
     numeric_level = getattr(logging, log_level.upper(), None)
@@ -25,7 +25,7 @@ def main():
 
     base_url = args.url
     max_depth = args.depth
-    urls_only=args.urls_only
+    urls_only = args.urls_only
 
     if not is_valid_url(base_url, base_url):
         logging.error("Invalid URL provided.")
