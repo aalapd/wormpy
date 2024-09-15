@@ -7,6 +7,7 @@ import PyPDF2
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from .url_processor import is_pdf_url
+from config import HEADERS, REQUEST_TIMEOUT, MAX_RETRIES, INITIAL_RETRY_DELAY, RATE_LIMIT_MIN, RATE_LIMIT_MAX
 
 class RateLimiter:
     def __init__(self, min_delay=1, max_delay=5):
@@ -24,21 +25,21 @@ class RateLimiter:
 
 rate_limiter = RateLimiter()
 
-def fetch_page(url, max_retries=3, backoff_factor=2):
+def fetch_page(url, max_retries=MAX_RETRIES, initial_delay=INITIAL_RETRY_DELAY):
     for attempt in range(max_retries):
         try:
             logging.info(f"Fetching content from URL: {url}")
             rate_limiter.wait()
-            response = requests.get(url)
+            response = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
             logging.info(f"Successfully fetched content from URL: {url}")
             return response.content, response.headers.get('Content-Type', '')
         except requests.RequestException as e:
-            logging.warning(f"Error fetching content from URL {url} (attempt {attempt + 1}/{max_retries}): {e}")
+            logging.warning(f"Error fetching content from URL {url} (attempt {attempt + 1}/{max_retries}): {str(e)}")
             if attempt < max_retries - 1:
-                wait_time = backoff_factor ** attempt
-                logging.info(f"Retrying in {wait_time} seconds...")
-                time.sleep(wait_time)
+                delay = initial_delay * (2 ** attempt)
+                logging.info(f"Retrying in {delay} seconds...")
+                time.sleep(delay)
             else:
                 logging.error(f"Failed to fetch content from URL {url} after {max_retries} attempts")
                 raise
