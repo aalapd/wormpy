@@ -21,7 +21,7 @@ def main():
     #parser.add_argument("--urls-only", action="store_true", help="Return only URLs instead of content")
     parser.add_argument("--log", default="INFO", help="Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
     parser.add_argument("--output", help="Specify the output file name (without extension)")
-    parser.add_argument("--format", choices=['csv', 'json'], default='csv', help="Specify the output format (csv or json)")
+    parser.add_argument("--format", choices=['csv', 'json'], default='json', help="Specify the output format (csv or json)")
     args = parser.parse_args()
 
     setup_logging(args.log)

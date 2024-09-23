@@ -8,17 +8,18 @@ Read the [tutorial](https://medium.com/@aalapdavjekar/7-lessons-i-learned-while-
 
 ## Features
 
-- Sitemap parsing (`sitemap.xml`, `sitemap_index.xml`, etc.)
+- Sitemap parsing (sitemap.xml, sitemap_index.xml, etc.)
 - Fallback to HTML parsing if sitemaps are unavailable
 - Recursive URL processing up to a specified depth
 - PDF content extraction
 - Rate limiting to respect server resources
 - Flexible logging
-- Content saved to timestamped files in a `scrapes` directory
+- Content saved to timestamped files in a scrapes directory
 - Command-line interface for easy use
-- Option to return only URLs instead of content
 - Image URL detection and skipping
 - Suspicious URL detection
+- Output in CSV or JSON format
+- Discovered URLs listed for each scraped page
 
 ## Requirements
 
@@ -49,7 +50,7 @@ pip install -r requirements.txt
 3. Run the program with the following command:
 
 ```
-python main.py <url> <depth> [--urls-only] [--log LOG_LEVEL] [--output OUTPUT_FILE]
+python main.py <url> <depth> [--log LOG_LEVEL] [--output OUTPUT_FILENAME] [--format {csv,json}]
 ```
 
 Arguments:
@@ -58,10 +59,11 @@ Arguments:
 - `--urls-only`: Return only URLs instead of content (optional)
 - `--log`: Set the logging level (optional, default is INFO)
 - `--output`: Specify the output file name (optional)
+- `--format`: Specify the output format, either 'csv' or 'json' (optional, default is 'json')
 
 Example:
 ```
-python main.py https://www.example.com 1 --log DEBUG --output example_scrape.txt
+python main.py https://www.example.com 1 --log DEBUG --output example_scrape --format csv
 ```
 
 ## Key Components
