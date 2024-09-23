@@ -1,35 +1,39 @@
 import os
-from datetime import datetime
+import csv
+import json
 import logging
 
-def initialize_output_file(filename):
-    try:
-        # Create 'scrapes' directory if it does not exist
-        os.makedirs('scrapes', exist_ok=True)
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        domain = filename.split("//")[-1].split("/")[0]
-        saved_name = f"scrapes/{domain}_{timestamp}.txt"
-        logging.info(f"Output file initialized: {saved_name}")
-        return saved_name
-    except Exception as e:
-        logging.error(f"Error initializing output file: {e}")
-        raise
+def save_output(data, filename, output_format):
+    """
+    Save the formatted output to a file.
 
-def write_to_file(filename, content):
+    Args:
+        data: Formatted data to be saved (list for CSV, dict for JSON)
+        filename (str): Name of the output file
+        output_format (str): Format of the output ('csv' or 'json')
+
+    Raises:
+        ValueError: If an invalid output format is specified
+        IOError: If there's an error writing to the file
+    """
     try:
-        with open(filename, 'a', encoding='utf-8') as f:
-            f.write(content)
-        logging.info(f"Successfully wrote to file: {filename}")
-    except Exception as e:
+        os.makedirs('scrapes', exist_ok=True)
+        full_path = os.path.join('scrapes', filename)
+
+        if output_format == 'csv':
+            with open(full_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerows(data)  # data[0] is now the header row
+        elif output_format == 'json':
+            with open(full_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+        else:
+            raise ValueError(f"Invalid output format: {output_format}")
+
+        logging.info(f"Successfully saved output to {full_path}")
+    except IOError as e:
         logging.error(f"Error writing to file {filename}: {e}")
         raise
-
-def finalize_file(filename):
-    try:
-        # Placeholder for any final processing
-        logging.info(f"Finalizing file: {filename}")
-        return filename
     except Exception as e:
-        logging.error(f"Error finalizing file {filename}: {e}")
+        logging.error(f"Unexpected error while saving output: {e}")
         raise

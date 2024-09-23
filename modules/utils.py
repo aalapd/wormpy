@@ -19,3 +19,30 @@ def is_image_content_type(url):
     except requests.RequestException:
         logging.error(f"Error checking content type for {url}")
         return False
+
+def format_output(results, output_format):
+    """
+    Format the scraped results according to the specified output format.
+
+    Args:
+        results (dict): Dictionary of scraped results with URLs as keys and 
+                        dictionaries containing 'content' and 'discovered_urls' as values
+        output_format (str): Desired output format ('csv' or 'json')
+
+    Returns:
+        list or dict: Formatted data ready for output
+
+    Raises:
+        ValueError: If an invalid output format is specified
+    """
+    sorted_results = dict(sorted(results.items()))
+
+    if output_format == 'csv':
+        csv_data = [['URL', 'Content', 'Discovered URLs']]
+        for url, data in sorted_results.items():
+            csv_data.append([url, data['content'], ', '.join(data['discovered_urls'])])
+        return csv_data
+    elif output_format == 'json':
+        return sorted_results
+    else:
+        raise ValueError(f"Invalid output format: {output_format}")
