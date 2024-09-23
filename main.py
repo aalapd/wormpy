@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 from modules.website_scraper import scrape_website
 from modules.utils import is_valid_url
 from modules.file_handler import initialize_output_file, finalize_file
@@ -43,7 +44,9 @@ def main():
             filename = initialize_output_file(base_url)
         scrape_website(base_url, max_depth, filename, urls_only)
         finalize_file(output_file)
-        logging.info(f"Scraping complete. Output saved to {output_file}")
+        # Get the absolute path of the output file
+        file_path = os.path.abspath(output_file if output_file else filename)
+        logging.info(f"Scraping complete. Output saved to {file_path}")    
     except Exception as e:
         logging.error(f"An error occurred during scraping: {str(e)}")
 
