@@ -10,7 +10,7 @@ from .url_processor import is_pdf_url
 from config import HEADERS, REQUEST_TIMEOUT, MAX_RETRIES, INITIAL_RETRY_DELAY, RATE_LIMIT_MIN, RATE_LIMIT_MAX
 
 class RateLimiter:
-    def __init__(self, min_delay=1, max_delay=5):
+    def __init__(self, min_delay=RATE_LIMIT_MIN, max_delay=RATE_LIMIT_MAX):
         self.min_delay = min_delay
         self.max_delay = max_delay
         self.last_request_time = 0
