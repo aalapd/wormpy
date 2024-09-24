@@ -4,6 +4,7 @@ import io
 import logging
 import random
 import PyPDF2
+import json
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from .url_processor import is_pdf_url
@@ -29,14 +30,16 @@ rate_limiter = RateLimiter()
 
 def process_page(url):
     content, content_type = fetch_page(url)
+    metadata = extract_metadata(content, content_type, url)
+    
     if content_type.lower().startswith('text/html'):
         extracted_text = extract_text_from_html(content)
     elif content_type.lower() == 'application/pdf' or is_pdf_url(url):
-        extracted_text = extract_text_from_pdf(url)
+        extracted_text = extract_text_from_pdf(io.BytesIO(content))
     else:
         extracted_text = f"Unsupported content type: {content_type}"
     
-    return extracted_text, content, content_type
+    return extracted_text, content, content_type, metadata
 
 def fetch_page(url, max_retries=MAX_RETRIES, initial_delay=INITIAL_RETRY_DELAY):
     """
@@ -82,6 +85,61 @@ def fetch_page(url, max_retries=MAX_RETRIES, initial_delay=INITIAL_RETRY_DELAY):
             else:
                 logging.error(f"Failed to fetch content from URL {url} after {max_retries} attempts")
                 raise
+
+def extract_metadata(content, content_type, url):
+    """
+    Extract metadata from the content based on its type.
+    
+    Args:
+        content (bytes or str): The raw content of the page.
+        content_type (str): The content type of the page.
+        url (str): The URL of the page.
+    
+    Returns:
+        dict: A dictionary containing the extracted metadata.
+    """
+    metadata = {
+        'url': url,
+        'content_type': content_type,
+    }
+    
+    if content_type.lower().startswith('text/html'):
+        soup = BeautifulSoup(content, 'html.parser')
+        
+        # Extract title
+        metadata['title'] = soup.title.string if soup.title else None
+        
+        # Extract meta tags
+        for meta in soup.find_all('meta'):
+            if 'name' in meta.attrs and 'content' in meta.attrs:
+                metadata[meta['name'].lower()] = meta['content']
+            elif 'property' in meta.attrs and 'content' in meta.attrs:
+                metadata[meta['property'].lower()] = meta['content']
+        
+        # Extract Open Graph metadata
+        for og in soup.find_all('meta', property=lambda x: x and x.startswith('og:')):
+            metadata[og['property']] = og['content']
+        
+        # Extract schema.org metadata
+        for schema in soup.find_all('script', type='application/ld+json'):
+            try:
+                schema_data = json.loads(schema.string)
+                metadata['schema_org'] = schema_data
+            except json.JSONDecodeError:
+                logging.warning(f"Failed to parse schema.org data for {url}")
+        
+    elif content_type.lower() == 'application/pdf':
+        try:
+            with io.BytesIO(content) as pdf_file:
+                reader = PyPDF2.PdfReader(pdf_file)
+                if reader.metadata:
+                    metadata.update(reader.metadata)
+        except Exception as e:
+            logging.error(f"Error extracting PDF metadata from {url}: {str(e)}")
+    
+    # Add logic for other content types here in the future
+    
+    return metadata
 
 def extract_text_from_html(html):
     """

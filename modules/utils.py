@@ -1,5 +1,6 @@
 import requests
 import logging
+import json
 from urllib.parse import urlparse
 
 def is_valid_url(url, base_url):
@@ -26,11 +27,12 @@ def format_output(results, output_format):
 
     Args:
         results (dict): Dictionary of scraped results with URLs as keys and 
-                        dictionaries containing 'content' and 'discovered_urls' as values
+                        dictionaries containing 'content', 'discovered_urls', and 'metadata' as values
         output_format (str): Desired output format ('csv' or 'json')
 
     Returns:
-        list or dict: Formatted data ready for output
+        list or dict: Formatted data ready for output. For CSV, a list of lists where the first row
+                      is the header. For JSON, the original dictionary structure is maintained.
 
     Raises:
         ValueError: If an invalid output format is specified
@@ -38,9 +40,15 @@ def format_output(results, output_format):
     sorted_results = dict(sorted(results.items()))
 
     if output_format == 'csv':
-        csv_data = [['URL', 'Content', 'Discovered URLs']]
+        csv_data = [['URL', 'Content', 'Discovered URLs', 'Metadata']]
         for url, data in sorted_results.items():
-            csv_data.append([url, data['content'], ', '.join(data['discovered_urls'])])
+            metadata_str = json.dumps(data.get('metadata', {}))
+            csv_data.append([
+                url, 
+                data['content'], 
+                ', '.join(data['discovered_urls']),
+                metadata_str
+            ])
         return csv_data
     elif output_format == 'json':
         return sorted_results

@@ -25,7 +25,7 @@ def scrape_website(base_url, max_depth):
                 continue
 
         try:
-            text_content, raw_content, content_type = process_page(current_url)
+            text_content, raw_content, content_type, metadata = process_page(current_url)
             
             new_urls = set(normalize_url(url) for url in extract_urls(raw_content, current_url, content_type) if is_valid_url(url, base_url))
             new_urls = {url for url in new_urls if url.startswith(base_url)}  # Filter URLs to start with base_url
@@ -35,8 +35,9 @@ def scrape_website(base_url, max_depth):
 
             
             results[normalized_url] = {
+                'metadata': metadata,
                 'content': text_content,
-                'discovered_urls': list(sorted_new_urls)
+                'discovered_urls': list(sorted_new_urls),
             }
             
             processed_urls.add(normalized_url)
