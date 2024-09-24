@@ -7,6 +7,8 @@ import PyPDF2
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from .url_processor import is_pdf_url
+from .selenium_processor import fetch_with_selenium
+#from ..utils import is_dynamic_content
 from config import HEADERS, REQUEST_TIMEOUT, MAX_RETRIES, INITIAL_RETRY_DELAY, RATE_LIMIT_MIN, RATE_LIMIT_MAX
 
 class RateLimiter:
@@ -25,16 +27,53 @@ class RateLimiter:
 
 rate_limiter = RateLimiter()
 
+def process_page(url):
+    content, content_type = fetch_page(url)
+    if content_type.lower().startswith('text/html'):
+        extracted_text = extract_text_from_html(content)
+    elif content_type.lower() == 'application/pdf' or is_pdf_url(url):
+        extracted_text = extract_text_from_pdf(url)
+    else:
+        extracted_text = f"Unsupported content type: {content_type}"
+    
+    return extracted_text, content, content_type
+
 def fetch_page(url, max_retries=MAX_RETRIES, initial_delay=INITIAL_RETRY_DELAY):
+    """
+    Fetch page content, trying static first and then dynamic if needed.
+
+    Args:
+        url (str): The URL to fetch.
+        max_retries (int): Maximum number of retry attempts.
+        initial_delay (float): Initial delay between retries.
+
+    Returns:
+        tuple: A tuple containing the page content and content type.
+
+    Raises:
+        Exception: If unable to fetch the page after max_retries.
+    """
     for attempt in range(max_retries):
         try:
             logging.info(f"Fetching content from URL: {url}")
             rate_limiter.wait()
+            
+            # Try with requests first
             response = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
+            content = response.content
+            content_type = response.headers.get('Content-Type', '')
+            
+            # Check if the content is likely to be dynamic
+            if is_dynamic_content(content):
+                logging.info(f"Content seems dynamic, switching to Selenium for {url}")
+                content, content_type = fetch_with_selenium(url)
+                if content is None:
+                    raise Exception("Selenium fetch failed")
+            
             logging.info(f"Successfully fetched content from URL: {url}")
-            return response.content, response.headers.get('Content-Type', '')
-        except requests.RequestException as e:
+            return content, content_type
+        except (requests.RequestException, Exception) as e:
             logging.warning(f"Error fetching content from URL {url} (attempt {attempt + 1}/{max_retries}): {str(e)}")
             if attempt < max_retries - 1:
                 delay = initial_delay * (2 ** attempt)
@@ -133,13 +172,21 @@ def extract_text_from_pdf(file_path_or_url):
         if pdf_file and not isinstance(pdf_file, io.BytesIO):
             pdf_file.close()
 
-def process_page(url):
-    content, content_type = fetch_page(url)
-    if content_type.lower().startswith('text/html'):
-        extracted_text = extract_text_from_html(content.decode('utf-8'))
-    elif content_type.lower() == 'application/pdf' or is_pdf_url(url):
-        extracted_text = extract_text_from_pdf(url)
-    else:
-        extracted_text = f"Unsupported content type: {content_type}"
-    
-    return extracted_text, content, content_type
+def is_dynamic_content(content):
+    """
+    Check if the content is likely to be dynamic based on the amount of text.
+
+    Args:
+        content (bytes): The page content.
+
+    Returns:
+        bool: True if the content is likely dynamic, False otherwise.
+    """
+    if content is None:
+        return True  # Assume dynamic if content is None
+    try:
+        text = extract_text_from_html(content.decode('utf-8'))
+        return len(text) < 500  # Adjust this threshold as needed
+    except Exception as e:
+        logging.warning(f"Error in is_likely_dynamic: {e}")
+        return True  # Assume dynamic if there's an error

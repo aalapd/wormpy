@@ -48,7 +48,7 @@ def main():
         
         # Determine output filename with current time
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = args.output if args.output else f"scrape_{base_url.split('//')[1].split('/')[0]}"
+        output_file = args.output if args.output else f"{base_url.split('//')[1].split('/')[0]}"
         filename = f"{output_file}_{timestamp}.{output_format}"
         
         # Save the formatted output

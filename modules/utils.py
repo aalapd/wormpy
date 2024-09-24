@@ -46,3 +46,4 @@ def format_output(results, output_format):
         return sorted_results
     else:
         raise ValueError(f"Invalid output format: {output_format}")
+    
