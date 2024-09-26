@@ -1,5 +1,5 @@
 # Scraped data
-/scrapes/
+/scrapes/*
 
 # Tests
 /tests/

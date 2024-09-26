@@ -44,6 +44,7 @@ def extract_urls(content, base_url, content_type='text/html'):
     try:
         if content_type.lower().startswith('text/html'):
             soup = BeautifulSoup(content, 'html.parser')
+            print("URLs added")
             return {urljoin(base_url, a['href']) for a in soup.find_all('a', href=True)}
         elif content_type.lower() == 'application/pdf':
             # For PDF content, we don't extract URLs

@@ -5,6 +5,7 @@ from datetime import datetime
 from modules.website_scraper import scrape_website
 from modules.utils import is_valid_url, format_output
 from modules.file_handler import save_output
+from modules.processors.selenium_processor import quit_selenium
 
 def setup_logging(log_level):
     numeric_level = getattr(logging, log_level.upper(), None)
@@ -18,7 +19,6 @@ def main():
     parser = argparse.ArgumentParser(description="Website Scraper")
     parser.add_argument("url", help="Base URL of the website to scrape")
     parser.add_argument("depth", type=int, help="Maximum crawling depth; 0 returns content from a single page")
-    #parser.add_argument("--urls-only", action="store_true", help="Return only URLs instead of content")
     parser.add_argument("--log", default="INFO", help="Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
     parser.add_argument("--output", help="Specify the output file name (without extension)")
     parser.add_argument("--format", choices=['csv', 'json'], default='json', help="Specify the output format (csv or json)")
@@ -28,7 +28,6 @@ def main():
 
     base_url = args.url
     max_depth = args.depth
-    #urls_only = args.urls_only
     output_format = args.format
 
     if not is_valid_url(base_url, base_url):
@@ -54,11 +53,11 @@ def main():
         # Save the formatted output
         save_output(formatted_output, filename, output_format)
         
-        # Get the absolute path of the output file
-        file_path = os.path.abspath(filename)
-        logging.info(f"Scraping complete. Output saved to {file_path}")
+        logging.info(f"Scraping complete.")
     except Exception as e:
         logging.error(f"An error occurred during scraping: {str(e)}")
+    finally:
+        quit_selenium()  # Ensure the Selenium driver is quit after the task is done
 
 if __name__ == "__main__":
     main()

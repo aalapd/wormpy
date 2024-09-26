@@ -30,9 +30,7 @@ def scrape_website(base_url, max_depth):
             new_urls = set(normalize_url(url) for url in extract_urls(raw_content, current_url, content_type) if is_valid_url(url, base_url))
             new_urls = {url for url in new_urls if url.startswith(base_url)}  # Filter URLs to start with base_url
             new_urls = new_urls - processed_urls - error_urls  # Remove already processed or errored URLs
-
             sorted_new_urls = sorted(list(new_urls))  # Sort the new URLs
-
             
             results[normalized_url] = {
                 'metadata': metadata,
