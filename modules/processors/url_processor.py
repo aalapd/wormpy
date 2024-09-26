@@ -1,8 +1,22 @@
-from urllib.parse import urljoin, urlparse, parse_qs
-from bs4 import BeautifulSoup
 import requests
 import logging
+from urllib.parse import urljoin, urlparse, parse_qs
+from bs4 import BeautifulSoup
 from ..utils import is_image_file_extension
+
+# urlparse output:
+# ParseResult(scheme='https', netloc='www.example.com:8080', path='/path/to/resource', params='', query='query=example', fragment='fragment')
+
+def get_domain(url):
+    # Parse the domain from the URL and format it
+    parsed_url = urlparse(url)
+    domain = parsed_url.netloc #.replace('.', 'dot')
+    return domain 
+
+def is_valid_url(url, base_url):
+    parsed_url = urlparse(url)
+    parsed_base = urlparse(base_url)
+    return (parsed_url.netloc == parsed_base.netloc and not is_image_file_extension(parsed_url.path))
 
 def normalize_url(url):
     parsed = urlparse(url)
@@ -44,7 +58,6 @@ def extract_urls(content, base_url, content_type='text/html'):
     try:
         if content_type.lower().startswith('text/html'):
             soup = BeautifulSoup(content, 'html.parser')
-            print("URLs added")
             return {urljoin(base_url, a['href']) for a in soup.find_all('a', href=True)}
         elif content_type.lower() == 'application/pdf':
             # For PDF content, we don't extract URLs
@@ -56,6 +69,3 @@ def extract_urls(content, base_url, content_type='text/html'):
     except Exception as e:
         logging.error(f"Error extracting URLs from content: {e}")
         return set()
-
-def get_domain(url):
-    return urlparse(url).netloc

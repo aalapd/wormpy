@@ -1,10 +1,10 @@
 import argparse
 import logging
-import os
 from datetime import datetime
 from modules.website_scraper import scrape_website
-from modules.utils import is_valid_url, format_output
+from modules.utils import format_output
 from modules.file_handler import save_output
+from modules.processors.url_processor import get_domain, is_valid_url
 from modules.processors.selenium_processor import quit_selenium
 
 def setup_logging(log_level):
@@ -20,7 +20,7 @@ def main():
     parser.add_argument("url", help="Base URL of the website to scrape")
     parser.add_argument("depth", type=int, help="Maximum crawling depth; 0 returns content from a single page")
     parser.add_argument("--log", default="INFO", help="Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
-    parser.add_argument("--output", help="Specify the output file name (without extension)")
+    parser.add_argument("--savename", help="Specify the directory name to save output")
     parser.add_argument("--format", choices=['csv', 'json'], default='json', help="Specify the output format (csv or json)")
     args = parser.parse_args()
 
@@ -28,6 +28,7 @@ def main():
 
     base_url = args.url
     max_depth = args.depth
+    save_name = args.savename
     output_format = args.format
 
     if not is_valid_url(base_url, base_url):
@@ -47,13 +48,18 @@ def main():
         
         # Determine output filename with current time
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = args.output if args.output else f"{base_url.split('//')[1].split('/')[0]}"
-        filename = f"{output_file}_{timestamp}.{output_format}"
+        filename = f"{timestamp}.{output_format}"
         
         # Save the formatted output
-        save_output(formatted_output, filename, output_format)
+        if save_name: folder_name = save_name 
+        else: 
+            domain = get_domain(base_url)
+            print(base_url)
+            print(domain)
+            folder_name = domain 
+        full_filepath = save_output(formatted_output, folder_name, filename, output_format)
         
-        logging.info(f"Scraping complete.")
+        logging.info(f"Scraping complete. File saved in {full_filepath}")
     except Exception as e:
         logging.error(f"An error occurred during scraping: {str(e)}")
     finally:

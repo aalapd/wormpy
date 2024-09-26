@@ -1,7 +1,7 @@
 import logging
-from .processors.url_processor import normalize_url, is_suspicious_url, extract_urls
+from .processors.url_processor import normalize_url, is_suspicious_url, extract_urls, is_valid_url
 from .processors.content_processor import process_page
-from .utils import is_image_content_type, is_valid_url
+from .utils import is_image_content_type
 
 def scrape_website(base_url, max_depth):
     all_discovered_urls = set()
@@ -31,7 +31,7 @@ def scrape_website(base_url, max_depth):
             new_urls = {url for url in new_urls if url.startswith(base_url)}  # Filter URLs to start with base_url
             new_urls = new_urls - processed_urls - error_urls  # Remove already processed or errored URLs
             sorted_new_urls = sorted(list(new_urls))  # Sort the new URLs
-            
+
             results[normalized_url] = {
                 'metadata': metadata,
                 'content': text_content,
@@ -51,7 +51,6 @@ def scrape_website(base_url, max_depth):
             logging.error(error_message)
             results[normalized_url] = {
                 'content': error_message,
-                'discovered_urls': []
             }
             error_urls.add(normalized_url)
 

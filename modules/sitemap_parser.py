@@ -1,9 +1,8 @@
 import requests
-from bs4 import BeautifulSoup
+import logging
 import xml.etree.ElementTree as ET
 from urllib.parse import urljoin
-from .utils import is_valid_url
-import logging
+from .processors.url_processor import is_valid_url
 
 def get_all_urls(base_url):
     sitemap_urls = parse_sitemap(base_url)
