@@ -2,7 +2,7 @@ import argparse
 import logging
 import asyncio
 from config import MAX_SIMULTANEOUS_SCRAPERS
-from modules.website_scraper import run_scrapers, run_init_scraper
+from modules.website_scraper import WebsiteScraper, run_scrapers, run_init_scraper
 from modules.utils import format_output, set_filename
 from modules.file_handler import save_output
 from modules.processors.url_processor import get_domain, is_valid_url
