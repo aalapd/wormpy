@@ -1,5 +1,6 @@
 import argparse
 import logging
+import asyncio
 from modules.website_scraper import run_scrapers
 from modules.utils import format_output, set_filename
 from modules.file_handler import save_output
