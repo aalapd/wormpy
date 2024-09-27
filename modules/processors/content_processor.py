@@ -157,7 +157,7 @@ def extract_text_from_html(html):
     extracts the remaining text content.
 
     Args:
-        html (str): The HTML content to process.
+        html (bytes): The HTML content to process.
 
     Returns:
         str: The extracted and cleaned text content.
@@ -170,6 +170,10 @@ def extract_text_from_html(html):
         - ERROR: When an error occurs during extraction.
     """
     try:
+        # Ensure the HTML content is decoded from bytes
+        if isinstance(html, bytes):
+            html = html.decode('utf-8')
+        
         soup = BeautifulSoup(html, 'html.parser')
         
         # Remove script, style, and other unwanted elements
