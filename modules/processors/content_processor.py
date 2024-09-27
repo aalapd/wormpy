@@ -6,10 +6,9 @@ import random
 import PyPDF2
 import json
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse
 from .url_processor import is_pdf_url
 from .selenium_processor import fetch_with_selenium
-#from ..utils import is_dynamic_content
+from ..utils import get_pdf_data
 from config import HEADERS, REQUEST_TIMEOUT, MAX_RETRIES, INITIAL_RETRY_DELAY, RATE_LIMIT_MIN, RATE_LIMIT_MAX
 
 class RateLimiter:
@@ -35,7 +34,7 @@ def process_page(url, force_scrape_method=None):
     if content_type.lower().startswith('text/html'):
         extracted_text = extract_text_from_html(content)
     elif content_type.lower() == 'application/pdf' or is_pdf_url(url):
-        extracted_text = extract_text_from_pdf(io.BytesIO(content))
+        extracted_text = extract_text_from_pdf(url)
     else:
         extracted_text = f"Unsupported content type: {content_type}"
     
@@ -137,10 +136,10 @@ def extract_metadata(content, content_type, url):
         
     elif content_type.lower() == 'application/pdf':
         try:
-            with io.BytesIO(content) as pdf_file:
-                reader = PyPDF2.PdfReader(pdf_file)
-                if reader.metadata:
-                    metadata.update(reader.metadata)
+            pdf_file = get_pdf_data(url)
+            reader = PyPDF2.PdfReader(pdf_file)
+            if reader.metadata:
+                metadata.update(reader.metadata)
         except Exception as e:
             logging.error(f"Error extracting PDF metadata from {url}: {str(e)}")
     
@@ -204,17 +203,9 @@ def extract_text_from_pdf(file_path_or_url):
     :param file_path_or_url: Local file path or URL of the PDF file
     :return: Extracted text content as a string
     """
-    pdf_file = None
     try:
-        # Determine if the input is a URL or local file path
-        parsed = urlparse(file_path_or_url)
-        if parsed.scheme in ('http', 'https'):
-            response = requests.get(file_path_or_url)
-            response.raise_for_status()
-            pdf_file = io.BytesIO(response.content)
-        else:
-            pdf_file = open(file_path_or_url, 'rb')
-
+        
+        pdf_file = get_pdf_data(file_path_or_url)
         # Create a PDF reader object
         pdf_reader = PyPDF2.PdfReader(pdf_file)
         

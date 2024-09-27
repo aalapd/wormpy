@@ -1,6 +1,20 @@
 import requests
 import logging
 import json
+import io
+from urllib.parse import urlparse
+
+def get_pdf_data(file_path_or_url):
+    pdf_data = None     
+    # Determine if the input is a URL or local file path
+    parsed = urlparse(file_path_or_url)
+    if parsed.scheme in ('http', 'https'):
+        response = requests.get(file_path_or_url)
+        response.raise_for_status()
+        pdf_data = io.BytesIO(response.content)
+    else:
+        pdf_data = open(file_path_or_url, 'rb')
+    return pdf_data
 
 def is_image_file_extension(path):
     image_extensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'mp3', 'mp4', 'wav', 'avi', 'mov']
