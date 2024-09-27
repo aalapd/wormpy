@@ -5,6 +5,7 @@ import logging
 import random
 import PyPDF2
 import json
+import asyncio
 from bs4 import BeautifulSoup
 from .url_processor import is_pdf_url
 from .selenium_processor import fetch_with_selenium
@@ -17,17 +18,17 @@ class RateLimiter:
         self.max_delay = max_delay
         self.last_request_time = 0
 
-    def wait(self):
+    async def wait(self):
         current_time = time.time()
         elapsed = current_time - self.last_request_time
         delay = random.uniform(self.min_delay, self.max_delay)
         if elapsed < delay:
-            time.sleep(delay - elapsed)
+            await asyncio.sleep(delay - elapsed)
         self.last_request_time = time.time()
 
 rate_limiter = RateLimiter()
 
-def process_page(url, force_scrape_method=None):
+async def process_page(url, force_scrape_method=None):
     content, content_type = fetch_page(url,force_scrape_method=force_scrape_method)
     metadata = extract_metadata(content, content_type, url)
     
@@ -40,7 +41,7 @@ def process_page(url, force_scrape_method=None):
     
     return extracted_text, content, content_type, metadata
 
-def fetch_page(url, force_scrape_method=None, max_retries=MAX_RETRIES, initial_delay=INITIAL_RETRY_DELAY):
+async def fetch_page(url, force_scrape_method=None, max_retries=MAX_RETRIES, initial_delay=INITIAL_RETRY_DELAY):
     """
     Fetch page content, trying static first and then dynamic if needed.
                                                                                                                         
@@ -59,7 +60,7 @@ def fetch_page(url, force_scrape_method=None, max_retries=MAX_RETRIES, initial_d
     for attempt in range(max_retries):
         try:
             logging.info(f"Fetching content from URL: {url}")
-            rate_limiter.wait()
+            await rate_limiter.wait()
                                                                                                                         
             if force_scrape_method == 'sel':
                 logging.info(f"Forcing Selenium for {url}")
@@ -87,7 +88,7 @@ def fetch_page(url, force_scrape_method=None, max_retries=MAX_RETRIES, initial_d
             if attempt < max_retries - 1:
                 delay = initial_delay * (2 ** attempt)
                 logging.info(f"Retrying in {delay} seconds...")
-                time.sleep(delay)
+                await asyncio.sleep(delay)
             else:
                 logging.error(f"Failed to fetch content from URL {url} after {max_retries} attempts")
                 raise
