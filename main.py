@@ -1,8 +1,7 @@
 import argparse
 import logging
-from datetime import datetime
 from modules.website_scraper import scrape_website
-from modules.utils import format_output
+from modules.utils import format_output, set_filename
 from modules.file_handler import save_output
 from modules.processors.url_processor import get_domain, is_valid_url
 from modules.processors.selenium_processor import quit_selenium
@@ -53,8 +52,7 @@ def main():
         formatted_output = format_output(results, output_format)
         
         # Determine output filename with current time
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{timestamp}.{output_format}"
+        filename = set_filename(output_format)
         
         # Save the formatted output
         if save_name: folder_name = save_name 

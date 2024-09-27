@@ -2,6 +2,7 @@ import requests
 import logging
 import json
 import io
+from datetime import datetime
 from urllib.parse import urlparse
 
 def get_pdf_data(file_path_or_url):
@@ -63,3 +64,7 @@ def format_output(results, output_format):
     else:
         raise ValueError(f"Invalid output format: {output_format}")
     
+def set_filename(output_format):
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{timestamp}.{output_format}"
+    return filename
