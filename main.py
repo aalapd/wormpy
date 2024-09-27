@@ -1,6 +1,7 @@
 import argparse
 import logging
 import asyncio
+from config import MAX_SIMULTANEOUS_SCRAPERS
 from modules.website_scraper import run_scrapers
 from modules.utils import format_output, set_filename
 from modules.file_handler import save_output
@@ -47,11 +48,10 @@ def main():
 
     try:
         # Prepare multiple scraper configurations
-        scraper_configs = [
-            {'base_url': base_url, 'max_depth': max_depth, 'force_scrape_method': force_scrape_method},
-            {'base_url': base_url, 'max_depth': max_depth, 'force_scrape_method': force_scrape_method},
-            {'base_url': base_url, 'max_depth': max_depth, 'force_scrape_method': force_scrape_method}
-        ]
+        scraper_configs = []
+        for scaper in MAX_SIMULTANEOUS_SCRAPERS:
+            scraper_configs.append({'base_url': base_url, 'max_depth': max_depth, 'force_scrape_method': force_scrape_method})    
+        
         
         # Run scrapers and get results
         results = asyncio.run(run_scrapers(scraper_configs))
