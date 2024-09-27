@@ -16,6 +16,7 @@ class WebsiteScraper:
         self.results = {}
 
     async def scrape(self):
+        logging.info("Initializing new scraper")
         while self.urls_to_process:
             current_url, depth = self.urls_to_process.pop(0)
             normalized_url = normalize_url(current_url)
@@ -98,6 +99,11 @@ async def run_scrapers(scraper_configs):
         scraper = WebsiteScraper(**config)
         tasks.append(scraper.scrape())
     results = await asyncio.gather(*tasks)
+    return results
+
+def run_init_scraper(scraper_config):
+    scraper = WebsiteScraper(**scraper_config)
+    results = scraper.scrape()
     return results
 
 if __name__ == "__main__":
