@@ -29,7 +29,7 @@ class RateLimiter:
 rate_limiter = RateLimiter()
 
 async def process_page(url, force_scrape_method=None):
-    content, content_type = fetch_page(url,force_scrape_method=force_scrape_method)
+    content, content_type = await fetch_page(url,force_scrape_method=force_scrape_method)
     metadata = extract_metadata(content, content_type, url)
     
     if content_type.lower().startswith('text/html'):
