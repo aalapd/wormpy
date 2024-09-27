@@ -46,54 +46,57 @@ def main():
         logging.error("Invalid flag used for --force. Please use either 'req' for requests or 'sel' for selenium.")
         return
 
-    try:
-        # Prepare a single scraper configuration for initial URL discovery
-        initial_scraper_config = {'base_url': base_url, 'max_depth': 0, 'force_scrape_method': force_scrape_method}
-                
-        # Run the initial scraper to discover URLs
-        initial_results = asyncio.run(run_init_scraper(initial_scraper_config))
-        
-        # Collect all discovered URLs from the initial scrape
-        all_discovered_urls = set()
-        for result in initial_results.values():
-            all_discovered_urls.update(result['discovered_urls'])
-        
-        # Divide discovered URLs among multiple scrapers
-        url_batches = [list(all_discovered_urls)[i::MAX_SIMULTANEOUS_SCRAPERS] for i in range(MAX_SIMULTANEOUS_SCRAPERS)]
-        
-        # Prepare multiple scraper configurations for discovered URLs
-        scrapers = [WebsiteScraper(base_url, max_depth, force_scrape_method) for _ in range(MAX_SIMULTANEOUS_SCRAPERS)]
-        
-        # Assign URL batches to each scraper
-        for i, scraper in enumerate(scrapers):
-            scraper.urls_to_process = [(url, 1) for url in url_batches[i]]  # Start at depth 1 for new URLs
-        
-        # Run scrapers on discovered URLs and get results
-        results = asyncio.run(asyncio.gather(*(scraper.scrape() for scraper in scrapers)))
-        
-        # Collate and sort results
-        collated_results = {}
-        for result in results:
-            collated_results.update(result)
-        
-        # Format the collated results
-        formatted_output = format_output(collated_results, output_format)
-        
-        # Determine output filename with current time
-        filename = set_filename(output_format)
-        
-        # Save the formatted output
-        if save_name: folder_name = save_name 
-        else: 
-            domain = get_domain(base_url)
-            folder_name = domain 
-        full_filepath = save_output(formatted_output, folder_name, filename, output_format)
-        
-        logging.info(f"Scraping complete. Data saved to {full_filepath}")
-    except Exception as e:
-        logging.error(f"An error occurred during scraping: {str(e)}")
-    finally:
-        quit_selenium()  # Ensure the Selenium driver is quit after the task is done
+    async def run_scraping():
+        try:
+            # Prepare a single scraper configuration for initial URL discovery
+            initial_scraper_config = {'base_url': base_url, 'max_depth': 0, 'force_scrape_method': force_scrape_method}
+                    
+            # Run the initial scraper to discover URLs
+            initial_results = await run_init_scraper(initial_scraper_config)
+            
+            # Collect all discovered URLs from the initial scrape
+            all_discovered_urls = set()
+            for result in initial_results.values():
+                all_discovered_urls.update(result['discovered_urls'])
+            
+            # Divide discovered URLs among multiple scrapers
+            url_batches = [list(all_discovered_urls)[i::MAX_SIMULTANEOUS_SCRAPERS] for i in range(MAX_SIMULTANEOUS_SCRAPERS)]
+            
+            # Prepare multiple scraper configurations for discovered URLs
+            scrapers = [WebsiteScraper(base_url, max_depth, force_scrape_method) for _ in range(MAX_SIMULTANEOUS_SCRAPERS)]
+            
+            # Assign URL batches to each scraper
+            for i, scraper in enumerate(scrapers):
+                scraper.urls_to_process = [(url, 1) for url in url_batches[i]]  # Start at depth 1 for new URLs
+            
+            # Run scrapers on discovered URLs and get results
+            results = await asyncio.gather(*(scraper.scrape() for scraper in scrapers))
+            
+            # Collate and sort results
+            collated_results = {}
+            for result in results:
+                collated_results.update(result)
+            
+            # Format the collated results
+            formatted_output = format_output(collated_results, output_format)
+            
+            # Determine output filename with current time
+            filename = set_filename(output_format)
+            
+            # Save the formatted output
+            if save_name: folder_name = save_name 
+            else: 
+                domain = get_domain(base_url)
+                folder_name = domain 
+            full_filepath = save_output(formatted_output, folder_name, filename, output_format)
+            
+            logging.info(f"Scraping complete. Data saved to {full_filepath}")
+        except Exception as e:
+            logging.error(f"An error occurred during scraping: {str(e)}")
+        finally:
+            quit_selenium()  # Ensure the Selenium driver is quit after the task is done
+
+    asyncio.run(run_scraping())
 
 if __name__ == "__main__":
     main()
