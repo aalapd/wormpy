@@ -2,7 +2,7 @@ import argparse
 import logging
 import asyncio
 from config import MAX_SIMULTANEOUS_SCRAPERS
-from modules.website_scraper import run_scrapers
+from modules.website_scraper import run_scrapers, run_init_scraper
 from modules.utils import format_output, set_filename
 from modules.file_handler import save_output
 from modules.processors.url_processor import get_domain, is_valid_url
@@ -48,12 +48,10 @@ def main():
 
     try:
         # Prepare a single scraper configuration for initial URL discovery
-        initial_scraper_config = {'base_url': base_url, 'max_depth': max_depth, 'force_scrape_method': force_scrape_method}
-        
+        initial_scraper_config = {'base_url': base_url, 'max_depth': '0', 'force_scrape_method': force_scrape_method}
+                
         # Run the initial scraper to discover URLs
-        
-        # Run the initial scraper to discover URLs
-        initial_results = asyncio.run(run_scrapers([initial_scraper_config]))
+        initial_results = run_init_scraper([initial_scraper_config])
         
         # Collect all discovered URLs from the initial scrape
         all_discovered_urls = set()
