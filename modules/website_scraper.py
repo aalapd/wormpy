@@ -101,9 +101,9 @@ async def run_scrapers(scraper_configs):
     results = await asyncio.gather(*tasks)
     return results
 
-def run_init_scraper(scraper_config):
+async def run_init_scraper(scraper_config):
     scraper = WebsiteScraper(**scraper_config)
-    results = scraper.scrape()
+    results = await scraper.scrape()
     return results
 
 if __name__ == "__main__":

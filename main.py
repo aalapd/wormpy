@@ -51,7 +51,7 @@ def main():
         initial_scraper_config = {'base_url': base_url, 'max_depth': '0', 'force_scrape_method': force_scrape_method}
                 
         # Run the initial scraper to discover URLs
-        initial_results = run_init_scraper(initial_scraper_config)
+        initial_results = asyncio.run(run_init_scraper(initial_scraper_config))
         
         # Collect all discovered URLs from the initial scrape
         all_discovered_urls = set()
