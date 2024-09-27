@@ -48,7 +48,7 @@ def main():
 
     try:
         # Prepare a single scraper configuration for initial URL discovery
-        initial_scraper_config = {'base_url': base_url, 'max_depth': '0', 'force_scrape_method': force_scrape_method}
+        initial_scraper_config = {'base_url': base_url, 'max_depth': 0, 'force_scrape_method': force_scrape_method}
                 
         # Run the initial scraper to discover URLs
         initial_results = asyncio.run(run_init_scraper(initial_scraper_config))
