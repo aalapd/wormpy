@@ -55,7 +55,7 @@ def main():
         
         # Collect all discovered URLs from the initial scrape
         all_discovered_urls = set()
-        for result in initial_results:
+        for result in initial_results.values():
             all_discovered_urls.update(result['discovered_urls'])
         
         # Divide discovered URLs among multiple scrapers
