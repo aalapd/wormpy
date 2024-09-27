@@ -28,8 +28,8 @@ class RateLimiter:
 
 rate_limiter = RateLimiter()
 
-def process_page(url):
-    content, content_type = fetch_page(url)
+def process_page(url, force_scrape_method=None):
+    content, content_type = fetch_page(url,force_scrape_method=force_scrape_method)
     metadata = extract_metadata(content, content_type, url)
     
     if content_type.lower().startswith('text/html'):
@@ -41,18 +41,19 @@ def process_page(url):
     
     return extracted_text, content, content_type, metadata
 
-def fetch_page(url, max_retries=MAX_RETRIES, initial_delay=INITIAL_RETRY_DELAY):
+def fetch_page(url, force_scrape_method=None, max_retries=MAX_RETRIES, initial_delay=INITIAL_RETRY_DELAY):
     """
     Fetch page content, trying static first and then dynamic if needed.
-
+                                                                                                                        
     Args:
         url (str): The URL to fetch.
         max_retries (int): Maximum number of retry attempts.
         initial_delay (float): Initial delay between retries.
-
+        force_scrape_method (str): Force the use of 'req' for requests or 'sel' for selenium.
+                                                                                                                        
     Returns:
         tuple: A tuple containing the page content and content type.
-
+                                                                                                                        
     Raises:
         Exception: If unable to fetch the page after max_retries.
     """
@@ -60,24 +61,30 @@ def fetch_page(url, max_retries=MAX_RETRIES, initial_delay=INITIAL_RETRY_DELAY):
         try:
             logging.info(f"Fetching content from URL: {url}")
             rate_limiter.wait()
-            
-            # Try with requests first
-            response = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
-            response.raise_for_status()
-            content = response.content
-            content_type = response.headers.get('Content-Type', '')
-            
-            # Check if the content is likely to be dynamic
-            if is_dynamic_content(content):
-                logging.info(f"Content seems dynamic, switching to Selenium for {url}")
+                                                                                                                        
+            if force_scrape_method == 'sel':
+                logging.info(f"Forcing Selenium for {url}")
                 content, content_type = fetch_with_selenium(url)
                 if content is None:
                     raise Exception("Selenium fetch failed")
-            
+            else:
+                # Try with requests first
+                response = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
+                response.raise_for_status()
+                content = response.content
+                content_type = response.headers.get('Content-Type', '')
+                                                                                                                        
+                # Check if the content is likely to be dynamic
+                if force_scrape_method != 'req' and is_dynamic_content(content):
+                    logging.info(f"Content seems dynamic, switching to Selenium for {url}")
+                    content, content_type = fetch_with_selenium(url)
+                    if content is None:
+                        raise Exception("Selenium fetch failed")
+                                                                                                                        
             logging.info(f"Successfully fetched content from URL: {url}")
             return content, content_type
         except (requests.RequestException, Exception) as e:
-            logging.warning(f"Error fetching content from URL {url} (attempt {attempt + 1}/{max_retries}): {str(e)}")
+            logging.warning(f"Error fetching content from URL {url} (attempt {attempt + 1}/{max_retries}): {str(e)}")    
             if attempt < max_retries - 1:
                 delay = initial_delay * (2 ** attempt)
                 logging.info(f"Retrying in {delay} seconds...")

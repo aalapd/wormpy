@@ -3,7 +3,7 @@ from .processors.url_processor import normalize_url, is_suspicious_url, extract_
 from .processors.content_processor import process_page
 from .utils import is_image_content_type
 
-def scrape_website(base_url, max_depth):
+def scrape_website(base_url, max_depth, force_scrape_method):
     all_discovered_urls = set()
     processed_urls = set()
     error_urls = set()
@@ -25,7 +25,7 @@ def scrape_website(base_url, max_depth):
                 continue
 
         try:
-            text_content, raw_content, content_type, metadata = process_page(current_url)
+            text_content, raw_content, content_type, metadata = process_page(current_url, force_scrape_method)
             
             new_urls = set(normalize_url(url) for url in extract_urls(raw_content, current_url, content_type) if is_valid_url(url, base_url))
             new_urls = {url for url in new_urls if url.startswith(base_url)}  # Filter URLs to start with base_url

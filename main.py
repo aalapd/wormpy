@@ -22,6 +22,7 @@ def main():
     parser.add_argument("--log", default="INFO", help="Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
     parser.add_argument("--savename", help="Specify the directory name to save output")
     parser.add_argument("--format", choices=['csv', 'json'], default='json', help="Specify the output format (csv or json)")
+    parser.add_argument("--force", choices=['req', 'sel'], help="Force scraping with either requests or selenium")
     args = parser.parse_args()
 
     setup_logging(args.log)
@@ -30,6 +31,7 @@ def main():
     max_depth = args.depth
     save_name = args.savename
     output_format = args.format
+    force_scrape_method = args.force
 
     if not is_valid_url(base_url, base_url):
         logging.error("Invalid URL provided.")
@@ -38,10 +40,14 @@ def main():
     if max_depth < 0:
         logging.error("Depth must be greater than or equal to zero.")
         return
+    
+    if force_scrape_method and force_scrape_method != 'req' and force_scrape_method != 'sel':
+        logging.error("Invalid flag used for --force. Please use either 'req' for requests or 'sel' for selenium.")
+        return
 
     try:
         # Scrape website and get results as a dictionary
-        results = scrape_website(base_url, max_depth)
+        results = scrape_website(base_url, max_depth, force_scrape_method)
         
         # Format the results
         formatted_output = format_output(results, output_format)
@@ -54,12 +60,10 @@ def main():
         if save_name: folder_name = save_name 
         else: 
             domain = get_domain(base_url)
-            print(base_url)
-            print(domain)
             folder_name = domain 
         full_filepath = save_output(formatted_output, folder_name, filename, output_format)
         
-        logging.info(f"Scraping complete. File saved in {full_filepath}")
+        logging.info(f"Scraping complete. Data saved to {full_filepath}")
     except Exception as e:
         logging.error(f"An error occurred during scraping: {str(e)}")
     finally:
