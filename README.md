@@ -50,20 +50,20 @@ pip install -r requirements.txt
 3. Run the program with the following command:
 
 ```
-python main.py <url> <depth> [--log LOG_LEVEL] [--output OUTPUT_FILENAME] [--format {csv,json}]
+python main.py [--log LOG_LEVEL] [--savename SAVE_DIRECTORY] [--format {csv,json}] [--force {req,sel}]
 ```
 
 Arguments:
-- `url`: Base URL of the website to scrape (required)
-- `depth`: Maximum crawling depth (required, must be a non-negative integer)
-- `--urls-only`: Return only URLs instead of content (optional)
-- `--log`: Set the logging level (optional, default is INFO)
-- `--output`: Specify the output file name (optional)
-- `--format`: Specify the output format, either 'csv' or 'json' (optional, default is 'json')
+ - `url`: Base URL of the website to scrape (required)
+ - `depth`: Maximum crawling depth (required, must be a non-negative integer)
+ - `--log`: Set the logging level (optional, default is INFO)
+ - `--savename`: Specify the directory name to save output (optional)
+ - `--format`: Specify the output format, either 'csv' or 'json' (optional, default is 'json')
+ - `--force`: Force scraping with either 'req' for requests or 'sel' for selenium (optional)
 
 Example:
 ```
-python main.py https://www.example.com 1 --log DEBUG --output example_scrape --format csv
+python main.py https://www.example.com 1 --log DEBUG --savename example_scrape --format csv --force sel
 ```
 
 ## Key Components
