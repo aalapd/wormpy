@@ -1,6 +1,6 @@
 import argparse
 import logging
-from modules.website_scraper import scrape_website
+from modules.website_scraper import run_scrapers
 from modules.utils import format_output, set_filename
 from modules.file_handler import save_output
 from modules.processors.url_processor import get_domain, is_valid_url
@@ -45,8 +45,16 @@ def main():
         return
 
     try:
-        # Scrape website and get results as a dictionary
-        results = scrape_website(base_url, max_depth, force_scrape_method)
+        # Prepare scraper configuration
+        scraper_config = {
+            'base_url': base_url,
+            'max_depth': max_depth,
+            'force_scrape_method': force_scrape_method
+        }
+        
+        # Run scrapers and get results
+        results = asyncio.run(run_scrapers([scraper_config]))
+        results = results[0]  # Since we are running only one scraper, get the first result
         
         # Format the results
         formatted_output = format_output(results, output_format)
