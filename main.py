@@ -62,14 +62,14 @@ def main():
         url_batches = [list(all_discovered_urls)[i::MAX_SIMULTANEOUS_SCRAPERS] for i in range(MAX_SIMULTANEOUS_SCRAPERS)]
         
         # Prepare multiple scraper configurations for discovered URLs
-        scraper_configs = [{'base_url': base_url, 'max_depth': max_depth, 'force_scrape_method': force_scrape_method} for _ in range(MAX_SIMULTANEOUS_SCRAPERS)]
+        scrapers = [WebsiteScraper(base_url, max_depth, force_scrape_method) for _ in range(MAX_SIMULTANEOUS_SCRAPERS)]
         
         # Assign URL batches to each scraper
-        for i, config in enumerate(scraper_configs):
-            config['urls_to_process'] = [(url, 1) for url in url_batches[i]]  # Start at depth 1 for new URLs
+        for i, scraper in enumerate(scrapers):
+            scraper.urls_to_process = [(url, 1) for url in url_batches[i]]  # Start at depth 1 for new URLs
         
         # Run scrapers on discovered URLs and get results
-        results = asyncio.run(run_scrapers(scraper_configs))
+        results = asyncio.run(asyncio.gather(*(scraper.scrape() for scraper in scrapers)))
         
         # Collate and sort results
         collated_results = {}
