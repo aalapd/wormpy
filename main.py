@@ -47,34 +47,25 @@ def main():
         return
 
     try:
-        # Prepare multiple scraper configurations
-        scraper_configs = []
-        for scaper in MAX_SIMULTANEOUS_SCRAPERS:
-            scraper_configs.append({'base_url': base_url, 'max_depth': max_depth, 'force_scrape_method': force_scrape_method})    
+        # Prepare a single scraper configuration for initial URL discovery
+        initial_scraper_config = {'base_url': base_url, 'max_depth': max_depth, 'force_scrape_method': force_scrape_method}
         
+        # Run the initial scraper to discover URLs
+        initial_results = asyncio.run(run_scrapers([initial_scraper_config]))
         
-        # Run scrapers and get results
+        # Prepare multiple scraper configurations for discovered URLs
+        scraper_configs = [{'base_url': base_url, 'max_depth': max_depth, 'force_scrape_method': force_scrape_method} for _ in range(MAX_SIMULTANEOUS_SCRAPERS)]
+        
+        # Run scrapers on discovered URLs and get results
         results = asyncio.run(run_scrapers(scraper_configs))
         
-        # Process results from all scrapers
-        for i, result in enumerate(results):
-            logging.info(f"Results from scraper {i+1}:")
-            formatted_output = format_output(result, output_format)
-            
-            # Determine output filename with current time
-            filename = set_filename(output_format)
-            
-            # Save the formatted output
-            if save_name: folder_name = f"{save_name}_scraper_{i+1}"
-            else: 
-                domain = get_domain(base_url)
-                folder_name = f"{domain}_scraper_{i+1}"
-            full_filepath = save_output(formatted_output, folder_name, filename, output_format)
-            
-            logging.info(f"Scraping complete for scraper {i+1}. Data saved to {full_filepath}")
+        # Collate and sort results
+        collated_results = {}
+        for result in results:
+            collated_results.update(result)
         
-        # Format the results
-        formatted_output = format_output(results, output_format)
+        # Format the collated results
+        formatted_output = format_output(collated_results, output_format)
         
         # Determine output filename with current time
         filename = set_filename(output_format)

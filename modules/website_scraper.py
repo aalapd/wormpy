@@ -63,6 +63,36 @@ class WebsiteScraper:
         return self.results
 
 async def run_scrapers(scraper_configs):
+    # Start with a single scraper to discover initial URLs
+    initial_scraper = WebsiteScraper(**scraper_configs[0])
+    initial_results = await initial_scraper.scrape()
+
+    # Collect all discovered URLs from the initial scrape
+    all_discovered_urls = set()
+    for result in initial_results.values():
+        all_discovered_urls.update(result['discovered_urls'])
+
+    # Divide discovered URLs among multiple scrapers
+    url_batches = [list(all_discovered_urls)[i::len(scraper_configs)] for i in range(len(scraper_configs))]
+
+    # Create new scrapers for each batch of URLs
+    tasks = []
+    for i, config in enumerate(scraper_configs):
+        scraper = WebsiteScraper(config['base_url'], config['max_depth'], config['force_scrape_method'])
+        scraper.urls_to_process = [(url, 1) for url in url_batches[i]]  # Start at depth 1 for new URLs
+        tasks.append(scraper.scrape())
+
+    # Run all scrapers concurrently
+    results = await asyncio.gather(*tasks)
+
+    # Collate and sort results
+    collated_results = {}
+    for result in results:
+        collated_results.update(result)
+
+    return collated_results
+
+async def run_scrapers(scraper_configs):
     tasks = []
     for config in scraper_configs:
         scraper = WebsiteScraper(**config)
