@@ -61,7 +61,7 @@ async def fetch_page(scraper_id, url, force_scrape_method=None, max_retries=MAX_
                     selenium_driver = SeleniumDriver()
                 content, content_type = await selenium_driver.fetch_with_selenium(url)
                 if content is None:
-                    raise Exception(f"Scraper {scraper_id}: Selenium fetch failed!")
+                    raise Exception("Scraper {scraper_id}: Selenium fetch failed!")
             else:
                 # Try with requests first
                 response = await asyncio.get_event_loop().run_in_executor(
@@ -78,7 +78,7 @@ async def fetch_page(scraper_id, url, force_scrape_method=None, max_retries=MAX_
                         selenium_driver = SeleniumDriver()
                     content, content_type = await selenium_driver.fetch_with_selenium(url)
                     if content is None:
-                        raise Exception(f"Scraper {scraper_id}: Selenium fetch failed!")
+                        raise Exception("Scraper {scraper_id}: Selenium fetch failed!")
                 
             logging.info(f"Scraper {scraper_id}: Successfully fetched content from URL: {url}")
             return content, content_type
