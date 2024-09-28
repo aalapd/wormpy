@@ -5,7 +5,7 @@ import asyncio
 import PyPDF2
 import json
 from bs4 import BeautifulSoup
-from .url_processor import is_pdf_url
+from .url_processor import is_pdf_url, extract_urls
 from .selenium_processor import SeleniumDriver
 from ..utils import get_pdf_data
 from config import HEADERS, REQUEST_TIMEOUT, MAX_RETRIES, INITIAL_RETRY_DELAY
