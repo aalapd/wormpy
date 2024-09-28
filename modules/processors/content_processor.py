@@ -25,7 +25,12 @@ async def process_page(scraper_id, url, force_scrape_method=None, selenium_drive
     """
     logging.info(f"Scraper {scraper_id}: Processing URL: {url}")
     try:
-        content, content_type = await fetch_page(scraper_id, url, force_scrape_method, selenium_driver=selenium_driver)
+        content, content_type, fetched_urls = await fetch_page(scraper_id, url, force_scrape_method, selenium_driver=selenium_driver)
+        
+        # Convert content to string if it's bytes
+        if isinstance(content, bytes):
+            content = content.decode('utf-8', errors='replace')
+        
         metadata = extract_metadata(content, content_type, url)
         
         if content_type.lower().startswith('text/html'):
@@ -35,7 +40,7 @@ async def process_page(scraper_id, url, force_scrape_method=None, selenium_drive
         else:
             extracted_text = f"Scraper {scraper_id}: Unsupported content type: {content_type}"
         
-        discovered_urls = extract_urls(content, url, content_type)
+        discovered_urls = fetched_urls if fetched_urls else extract_urls(content, url, content_type)
         return content, content_type, extracted_text, metadata, discovered_urls
     except Exception as e:
         logging.error(f"Scraper {scraper_id}: Error processing {url}: {str(e)}")
@@ -66,9 +71,9 @@ async def fetch_page(scraper_id, url, force_scrape_method=None, max_retries=MAX_
                 logging.info(f"Scraper {scraper_id}: Forcing Selenium for {url}")
                 if selenium_driver is None:
                     selenium_driver = SeleniumDriver()
-                content, content_type = await selenium_driver.fetch_with_selenium(url)
+                content, content_type, discovered_urls = await selenium_driver.fetch_with_selenium(url)
                 if content is None:
-                    raise Exception("Scraper {scraper_id}: Selenium fetch failed!")
+                    raise Exception(f"Scraper {scraper_id}: Selenium fetch failed!")
             else:
                 # Try with requests first
                 response = await asyncio.get_event_loop().run_in_executor(
@@ -77,18 +82,19 @@ async def fetch_page(scraper_id, url, force_scrape_method=None, max_retries=MAX_
                 response.raise_for_status()
                 content = response.content
                 content_type = response.headers.get('Content-Type', '')
+                discovered_urls = []
                 
                 # Check if the content is likely to be dynamic
                 if force_scrape_method != 'req' and is_dynamic_content(content):
                     logging.info(f"Scraper {scraper_id}: Content seems dynamic, switching to Selenium for {url}")
                     if selenium_driver is None:
                         selenium_driver = SeleniumDriver()
-                    content, content_type = await selenium_driver.fetch_with_selenium(url)
+                    content, content_type, discovered_urls = await selenium_driver.fetch_with_selenium(url)
                     if content is None:
-                        raise Exception("Scraper {scraper_id}: Selenium fetch failed!")
+                        raise Exception(f"Scraper {scraper_id}: Selenium fetch failed!")
                 
             logging.info(f"Scraper {scraper_id}: Successfully fetched content from URL: {url}")
-            return content, content_type
+            return content, content_type, discovered_urls
         except (requests.RequestException, Exception) as e:
             logging.warning(f"Scraper {scraper_id}: Error fetching content from URL {url} (attempt {attempt + 1}/{max_retries}): {str(e)}")    
             if attempt < max_retries - 1:

@@ -1,3 +1,5 @@
+# main.py
+
 import argparse
 import logging
 import asyncio
@@ -6,9 +8,18 @@ from config import MAX_SIMULTANEOUS_SCRAPERS
 from modules.website_scraper import WebsiteScraper, run_scrapers, run_init_scraper
 from modules.utils import format_output, set_filename
 from modules.file_handler import save_output
-from modules.processors.url_processor import get_domain, is_valid_url
+from modules.processors.url_processor import get_domain, is_valid_url, normalize_url, url_matches_base
 
 def setup_logging(log_level):
+    """
+    Set up logging configuration.
+
+    Args:
+        log_level (str): Desired logging level.
+
+    Raises:
+        ValueError: If an invalid log level is provided.
+    """
     numeric_level = getattr(logging, log_level.upper(), None)
     if not isinstance(numeric_level, int):
         raise ValueError(f'Invalid log level: {log_level}')
@@ -17,6 +28,9 @@ def setup_logging(log_level):
                         handlers=[logging.StreamHandler()])
 
 def main():
+    """
+    Main function to run the web scraper.
+    """
     start_time = time.time()  # Record the start time
 
     parser = argparse.ArgumentParser(description="Website Scraper")
@@ -44,14 +58,17 @@ def main():
         logging.error("Depth must be greater than or equal to zero.")
         return
 
-    if force_scrape_method and force_scrape_method != 'req' and force_scrape_method != 'sel':
+    if force_scrape_method and force_scrape_method not in ['req', 'sel']:
         logging.error("Invalid flag used for --force. Please use either 'req' for requests or 'sel' for selenium.")
         return
 
     async def run_scraping():
         try:
+            # Normalize the base_url
+            normalized_base_url = normalize_url(base_url)
+
             # Prepare a single scraper configuration for initial URL discovery
-            initial_scraper_config = {'base_url': base_url, 'max_depth': 0, 'force_scrape_method': force_scrape_method}
+            initial_scraper_config = {'base_url': normalized_base_url, 'max_depth': 0, 'force_scrape_method': force_scrape_method}
 
             logging.info("Starting initial scraper for URL discovery")
             # Run the initial scraper to discover URLs
@@ -61,18 +78,18 @@ def main():
             # Collect all discovered URLs from the initial scrape
             all_discovered_urls = set()
             for result in initial_results.values():
-                all_discovered_urls.update(result.get('discovered_urls', []))
+                all_discovered_urls.update(url for url in result.get('discovered_urls', []) if url_matches_base(url, normalized_base_url))
 
             logging.info(f"Total URLs discovered: {len(all_discovered_urls)}")
 
-            if max_depth > 0 and len(all_discovered_urls) > 0:
+            if max_depth > 0 and all_discovered_urls:
                 # Divide discovered URLs among multiple scrapers
                 url_batches = [list(all_discovered_urls)[i::MAX_SIMULTANEOUS_SCRAPERS] for i in range(MAX_SIMULTANEOUS_SCRAPERS)]
 
                 # Prepare multiple scraper configurations for discovered URLs
                 scrapers = []
                 for i in range(min(len(all_discovered_urls), MAX_SIMULTANEOUS_SCRAPERS)):
-                    scraper = WebsiteScraper(base_url, max_depth, scraper_id=i+1, force_scrape_method=force_scrape_method)
+                    scraper = WebsiteScraper(normalized_base_url, max_depth, scraper_id=i+1, force_scrape_method=force_scrape_method)
                     scraper.urls_to_process = [(url, 1) for url in url_batches[i]]  # Start at depth 1 for new URLs
                     scrapers.append(scraper)
                     logging.info(f"Scraper {i+1} initialized with {len(url_batches[i])} URLs")
@@ -97,7 +114,7 @@ def main():
             if save_name:
                 folder_name = save_name
             else:
-                domain = get_domain(base_url)
+                domain = get_domain(normalized_base_url)
                 folder_name = domain
             full_filepath = save_output(formatted_output, folder_name, filename, output_format)
 

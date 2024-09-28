@@ -39,11 +39,11 @@ class SeleniumDriver:
             
             # Wait for the initial page load
             await asyncio.get_event_loop().run_in_executor(
-                None, 
+                None,
                 WebDriverWait(driver, timeout).until,
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
-            
+
             # Wait for the page to become interactive
             await asyncio.get_event_loop().run_in_executor(
                 None,
@@ -51,8 +51,8 @@ class SeleniumDriver:
                     lambda d: d.execute_script('return document.readyState') == 'complete'
                 )
             )
-            
-            # Scroll to trigger lazy loading
+
+            # Scroll to trigger lazy loading and handle infinite scrolling
             last_height = await asyncio.get_event_loop().run_in_executor(
                 None, driver.execute_script, "return document.body.scrollHeight"
             )
@@ -65,12 +65,20 @@ class SeleniumDriver:
                     None, driver.execute_script, "return document.body.scrollHeight"
                 )
                 if new_height == last_height:
-                    break
+                    # Check if there's a "Load More" button and click it
+                    try:
+                        load_more_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Load More')]")
+                        await asyncio.get_event_loop().run_in_executor(None, load_more_button.click)
+                        await asyncio.sleep(scroll_pause)
+                        continue
+                    except Exception as e:
+                        logging.debug(f"No 'Load More' button found or error clicking it: {str(e)}")
+                        break
                 last_height = new_height
-            
+
             # Wait for any remaining dynamic content
-            await asyncio.sleep(2)
-            
+            await asyncio.sleep(5)
+
             # Check if there are any AJAX requests still pending
             is_jquery_active = await asyncio.get_event_loop().run_in_executor(
                 None, driver.execute_script, "return window.jQuery && jQuery.active > 0"
@@ -82,12 +90,31 @@ class SeleniumDriver:
                         lambda d: d.execute_script("return window.jQuery && jQuery.active == 0")
                     )
                 )
-            
+
             page_source = await asyncio.get_event_loop().run_in_executor(None, lambda: driver.page_source)
             content_type = await asyncio.get_event_loop().run_in_executor(
-                None, driver.execute_script, "return document.contentType;"
+                None, driver.execute_script, "return document.contentType || 'text/html';"
             )
-            return page_source, content_type
+            
+            # Ensure page_source is a string
+            if isinstance(page_source, bytes):
+                page_source = page_source.decode('utf-8', errors='ignore')
+            elif page_source is None:
+                logging.error(f"Failed to retrieve page source for {url}")
+                return None, None, []
+
+            # Extract all links from the page
+            links = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: [element.get_attribute('href') for element in driver.find_elements(By.TAG_NAME, 'a')]
+            )
+            # Filter out None values and remove duplicates
+            discovered_urls = list(set(filter(None, links)))
+
+            return page_source, content_type, discovered_urls
         except Exception as e:
             logging.error(f"Selenium error fetching {url}: {str(e)}")
-            return None, None
+            return None, None, []
+        finally:
+            # Ensure the driver is quit even if an exception occurs
+            self.quit_selenium()

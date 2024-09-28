@@ -57,6 +57,10 @@ class WebsiteScraper:
                 current_url, depth = self.urls_to_process.pop(0)
                 normalized_url = normalize_url(current_url)
                 
+                if not normalized_url.startswith(self.base_url):
+                    logging.info(f"Skipping URL not starting with base URL: {normalized_url}")
+                    continue
+
                 if normalized_url in self.processed_urls or normalized_url in self.error_urls:
                     continue
 
@@ -70,31 +74,38 @@ class WebsiteScraper:
                 try:
                     domain = get_domain(current_url)
                     await self.rate_limiter.wait(domain)
-                    text_content, raw_content, content_type, metadata, discovered_urls = await process_page(
+                    content, content_type, extracted_text, metadata, discovered_urls = await process_page(
                         self.scraper_id,
                         current_url, 
                         self.force_scrape_method, 
                         selenium_driver=self.selenium_driver,
                     )
-                
-                    new_urls = set(normalize_url(url) for url in discovered_urls if is_valid_url(url, self.base_url))
-                    new_urls = {url for url in new_urls if url.startswith(self.base_url)}  # Filter URLs to start with base_url
-                    new_urls = new_urls - self.processed_urls - self.error_urls  # Remove already processed or errored URLs
-                    sorted_new_urls = sorted(list(new_urls))  # Sort the new URLs
+                    
+                    # Normalize all discovered URLs
+                    all_discovered_urls = set(normalize_url(url) for url in discovered_urls)
+                    
+                    # Filter URLs for processing (only those starting with base_url)
+                    urls_for_processing = {url for url in all_discovered_urls if url.startswith(self.base_url)}
+                    
+                    # Remove already processed or errored URLs from processing list
+                    urls_for_processing = urls_for_processing - self.processed_urls - self.error_urls
+                    
+                    # Sort the URLs for consistent output
+                    sorted_all_discovered = sorted(list(all_discovered_urls))
+                    sorted_urls_for_processing = sorted(list(urls_for_processing))
 
                     self.results[normalized_url] = {
                         'metadata': metadata,
-                        'content': text_content,
-                        'discovered_urls': list(sorted_new_urls),
+                        'content': extracted_text,
+                        'discovered_urls': sorted_all_discovered,  # All discovered URLs
                     }
                     
                     self.processed_urls.add(normalized_url)
-                    self.all_discovered_urls.add(normalized_url)
-                    self.all_discovered_urls.update(sorted_new_urls)
+                    self.all_discovered_urls.update(all_discovered_urls)
                     logging.info(f"Scraper {self.scraper_id}: Successfully processed {current_url}")
 
                     if depth < self.max_depth:
-                        self.urls_to_process.extend((url, depth + 1) for url in new_urls)
+                        self.urls_to_process.extend((url, depth + 1) for url in sorted_urls_for_processing)
 
                 except Exception as e:
                     error_message = f"Scraper {self.scraper_id}: Error processing {current_url}: {str(e)}"
