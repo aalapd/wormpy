@@ -70,14 +70,14 @@ class WebsiteScraper:
                 try:
                     domain = get_domain(current_url)
                     await self.rate_limiter.wait(domain)
-                    text_content, raw_content, content_type, metadata = await process_page(
+                    text_content, raw_content, content_type, metadata, discovered_urls = await process_page(
                         self.scraper_id,
                         current_url, 
                         self.force_scrape_method, 
                         selenium_driver=self.selenium_driver,
                     )
-                    
-                    new_urls = set(normalize_url(url) for url in extract_urls(raw_content, current_url, content_type) if is_valid_url(url, self.base_url))
+                
+                    new_urls = set(normalize_url(url) for url in discovered_urls if is_valid_url(url, self.base_url))
                     new_urls = {url for url in new_urls if url.startswith(self.base_url)}  # Filter URLs to start with base_url
                     new_urls = new_urls - self.processed_urls - self.error_urls  # Remove already processed or errored URLs
                     sorted_new_urls = sorted(list(new_urls))  # Sort the new URLs
