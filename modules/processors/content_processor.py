@@ -1,35 +1,28 @@
 import requests
-import time
 import io
 import logging
-import random
+import asyncio
 import PyPDF2
 import json
-import asyncio
 from bs4 import BeautifulSoup
 from .url_processor import is_pdf_url
-from .selenium_processor import fetch_with_selenium
+from .selenium_processor import SeleniumDriver
 from ..utils import get_pdf_data
-from config import HEADERS, REQUEST_TIMEOUT, MAX_RETRIES, INITIAL_RETRY_DELAY, RATE_LIMIT_MIN, RATE_LIMIT_MAX
+from config import HEADERS, REQUEST_TIMEOUT, MAX_RETRIES, INITIAL_RETRY_DELAY
 
-class RateLimiter:
-    def __init__(self, min_delay=RATE_LIMIT_MIN, max_delay=RATE_LIMIT_MAX):
-        self.min_delay = min_delay
-        self.max_delay = max_delay
-        self.last_request_time = 0
+async def process_page(scraper_id, url, force_scrape_method=None, selenium_driver=None):
+    """
+    Process a page by fetching its content and extracting relevant information.
 
-    async def wait(self):
-        current_time = time.time()
-        elapsed = current_time - self.last_request_time
-        delay = random.uniform(self.min_delay, self.max_delay)
-        if elapsed < delay:
-            await asyncio.sleep(delay - elapsed)
-        self.last_request_time = time.time()
+    Args:
+        url (str): The URL of the page to process.
+        force_scrape_method (str, optional): Force a specific scraping method ('req' or 'sel').
+        selenium_driver (SeleniumDriver, optional): Instance of SeleniumDriver for Selenium operations.
 
-rate_limiter = RateLimiter()
-
-async def process_page(url, force_scrape_method=None):
-    content, content_type = await fetch_page(url,force_scrape_method=force_scrape_method)
+    Returns:
+        tuple: A tuple containing extracted text, raw content, content type, and metadata.
+    """
+    content, content_type = await fetch_page(scraper_id, url, force_scrape_method=force_scrape_method, selenium_driver=selenium_driver)
     metadata = extract_metadata(content, content_type, url)
     
     if content_type.lower().startswith('text/html'):
@@ -37,60 +30,66 @@ async def process_page(url, force_scrape_method=None):
     elif content_type.lower() == 'application/pdf' or is_pdf_url(url):
         extracted_text = extract_text_from_pdf(url)
     else:
-        extracted_text = f"Unsupported content type: {content_type}"
+        extracted_text = f"Scraper {scraper_id}: Unsupported content type: {content_type}"
     
     return extracted_text, content, content_type, metadata
 
-async def fetch_page(url, force_scrape_method=None, max_retries=MAX_RETRIES, initial_delay=INITIAL_RETRY_DELAY):
+async def fetch_page(scraper_id, url, force_scrape_method=None, max_retries=MAX_RETRIES, initial_delay=INITIAL_RETRY_DELAY, selenium_driver=None):
     """
     Fetch page content, trying static first and then dynamic if needed.
-                                                                                                                        
+
     Args:
         url (str): The URL to fetch.
+        force_scrape_method (str, optional): Force the use of 'req' for requests or 'sel' for selenium.
         max_retries (int): Maximum number of retry attempts.
         initial_delay (float): Initial delay between retries.
-        force_scrape_method (str): Force the use of 'req' for requests or 'sel' for selenium.
-                                                                                                                        
+        selenium_driver (SeleniumDriver, optional): Instance of SeleniumDriver for Selenium operations.
+
     Returns:
         tuple: A tuple containing the page content and content type.
-                                                                                                                        
+
     Raises:
         Exception: If unable to fetch the page after max_retries.
     """
     for attempt in range(max_retries):
         try:
-            logging.info(f"Fetching content from URL: {url}")
-            await rate_limiter.wait()
-                                                                                                                        
+            logging.info(f"Scraper {scraper_id}: Attempting to fetch content from URL: {url}")
+            
             if force_scrape_method == 'sel':
-                logging.info(f"Forcing Selenium for {url}")
-                content, content_type = fetch_with_selenium(url)
+                logging.info(f"Scraper {scraper_id}: Forcing Selenium for {url}")
+                if selenium_driver is None:
+                    selenium_driver = SeleniumDriver()
+                content, content_type = await selenium_driver.fetch_with_selenium(url)
                 if content is None:
-                    raise Exception("Selenium fetch failed")
+                    raise Exception("Scraper {scraper_id}: Selenium fetch failed!")
             else:
                 # Try with requests first
-                response = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
+                response = await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
+                )
                 response.raise_for_status()
                 content = response.content
                 content_type = response.headers.get('Content-Type', '')
-                                                                                                                        
+                
                 # Check if the content is likely to be dynamic
                 if force_scrape_method != 'req' and is_dynamic_content(content):
-                    logging.info(f"Content seems dynamic, switching to Selenium for {url}")
-                    content, content_type = fetch_with_selenium(url)
+                    logging.info(f"Scraper {scraper_id}: Content seems dynamic, switching to Selenium for {url}")
+                    if selenium_driver is None:
+                        selenium_driver = SeleniumDriver()
+                    content, content_type = await selenium_driver.fetch_with_selenium(url)
                     if content is None:
-                        raise Exception("Selenium fetch failed")
-                                                                                                                        
-            logging.info(f"Successfully fetched content from URL: {url}")
+                        raise Exception("Scraper {scraper_id}: Selenium fetch failed!")
+                
+            logging.info(f"Scraper {scraper_id}: Successfully fetched content from URL: {url}")
             return content, content_type
         except (requests.RequestException, Exception) as e:
-            logging.warning(f"Error fetching content from URL {url} (attempt {attempt + 1}/{max_retries}): {str(e)}")    
+            logging.warning(f"Scraper {scraper_id}: Error fetching content from URL {url} (attempt {attempt + 1}/{max_retries}): {str(e)}")    
             if attempt < max_retries - 1:
                 delay = initial_delay * (2 ** attempt)
-                logging.info(f"Retrying in {delay} seconds...")
+                logging.info(f"Scraper {scraper_id}: Retrying in {delay} seconds...")
                 await asyncio.sleep(delay)
             else:
-                logging.error(f"Failed to fetch content from URL {url} after {max_retries} attempts")
+                logging.error(f"Scraper {scraper_id}: Failed to fetch content from URL {url} after {max_retries} attempts!")
                 raise
 
 def extract_metadata(content, content_type, url):
@@ -157,7 +156,7 @@ def extract_text_from_html(html):
     extracts the remaining text content.
 
     Args:
-        html (bytes): The HTML content to process.
+        html (str): The HTML content to process.
 
     Returns:
         str: The extracted and cleaned text content.
@@ -170,10 +169,6 @@ def extract_text_from_html(html):
         - ERROR: When an error occurs during extraction.
     """
     try:
-        # Ensure the HTML content is decoded from bytes
-        if isinstance(html, bytes):
-            html = html.decode('utf-8')
-        
         soup = BeautifulSoup(html, 'html.parser')
         
         # Remove script, style, and other unwanted elements
@@ -195,7 +190,7 @@ def extract_text_from_html(html):
         lines = (line.strip() for line in text.splitlines())
         text = '\n'.join(line for line in lines if line)
         
-        logging.info("Successfully extracted text from HTML content")
+        #logging.info("Successfully extracted text from HTML content")
         return text
     except Exception as e:
         logging.error(f"Error extracting text from HTML content: {e}")
@@ -217,7 +212,7 @@ def extract_text_from_pdf(file_path_or_url):
         # Extract text from all pages
         text_content = "\n".join(page.extract_text() for page in pdf_reader.pages)
         
-        logging.info(f"Successfully extracted text from PDF: {file_path_or_url}")
+        #logging.info(f"Successfully extracted text from PDF: {file_path_or_url}")
         return text_content.strip()
 
     except requests.RequestException as e:
@@ -250,4 +245,4 @@ def is_dynamic_content(content):
         return len(text) < 500  # Adjust this threshold as needed
     except Exception as e:
         logging.warning(f"Error in is_likely_dynamic: {e}")
-        return True  # Assume dynamic if there's an error
+        return True  # Assume dynamic if there's an errorerror

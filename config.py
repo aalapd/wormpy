@@ -26,3 +26,6 @@ INITIAL_RETRY_DELAY = 1
 # Rate limiting delay range (in seconds)
 RATE_LIMIT_MIN = 1
 RATE_LIMIT_MAX = 5
+
+# Max number of scrapers to use
+MAX_SIMULTANEOUS_SCRAPERS = 12

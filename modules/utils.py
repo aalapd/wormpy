@@ -5,6 +5,47 @@ import io
 from datetime import datetime
 from urllib.parse import urlparse
 
+import asyncio
+import time
+import random
+from collections import defaultdict
+from config import RATE_LIMIT_MIN, RATE_LIMIT_MAX
+
+class AsyncRateLimiter:
+    """
+    Asynchronous rate limiter with per-domain limiting capabilities.
+
+    This class provides an asynchronous way to limit the rate of requests
+    to different domains.
+
+    Attributes:
+        min_delay (float): Minimum delay between requests in seconds.
+        max_delay (float): Maximum delay between requests in seconds.
+        last_request_times (defaultdict): Dictionary to store the last request time for each domain.
+    """
+
+    def __init__(self, min_delay=RATE_LIMIT_MIN, max_delay=RATE_LIMIT_MAX):
+        self.min_delay = min_delay
+        self.max_delay = max_delay
+        self.last_request_times = defaultdict(float)
+
+    async def wait(self, domain):
+        """
+        Asynchronously wait for the appropriate time before making a new request to a domain.
+
+        Args:
+            domain (str): The domain for which to wait.
+
+        This method calculates the time elapsed since the last request to the given domain
+        and waits for the remaining time if necessary.
+        """
+        current_time = time.time()
+        elapsed = current_time - self.last_request_times[domain]
+        delay = random.uniform(self.min_delay, self.max_delay)
+        if elapsed < delay:
+            await asyncio.sleep(delay - elapsed)
+        self.last_request_times[domain] = time.time()
+
 def get_pdf_data(file_path_or_url):
     pdf_data = None     
     # Determine if the input is a URL or local file path
