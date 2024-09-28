@@ -61,31 +61,34 @@ def main():
             # Collect all discovered URLs from the initial scrape
             all_discovered_urls = set()
             for result in initial_results.values():
-                all_discovered_urls.update(result['discovered_urls'])
+                all_discovered_urls.update(result.get('discovered_urls', []))
 
             logging.info(f"Total URLs discovered: {len(all_discovered_urls)}")
 
-            # Divide discovered URLs among multiple scrapers
-            url_batches = [list(all_discovered_urls)[i::MAX_SIMULTANEOUS_SCRAPERS] for i in range(MAX_SIMULTANEOUS_SCRAPERS)]
+            if max_depth > 0 and len(all_discovered_urls) > 0:
+                # Divide discovered URLs among multiple scrapers
+                url_batches = [list(all_discovered_urls)[i::MAX_SIMULTANEOUS_SCRAPERS] for i in range(MAX_SIMULTANEOUS_SCRAPERS)]
 
-            # Prepare multiple scraper configurations for discovered URLs
-            scrapers = []
-            for i in range(MAX_SIMULTANEOUS_SCRAPERS):
-                scraper = WebsiteScraper(base_url, max_depth, scraper_id=i+1, force_scrape_method=force_scrape_method)
-                scraper.urls_to_process = [(url, 1) for url in url_batches[i]]  # Start at depth 1 for new URLs
-                scrapers.append(scraper)
-                logging.info(f"Scraper {i+1} initialized with {len(url_batches[i])} URLs")
+                # Prepare multiple scraper configurations for discovered URLs
+                scrapers = []
+                for i in range(min(len(all_discovered_urls), MAX_SIMULTANEOUS_SCRAPERS)):
+                    scraper = WebsiteScraper(base_url, max_depth, scraper_id=i+1, force_scrape_method=force_scrape_method)
+                    scraper.urls_to_process = [(url, 1) for url in url_batches[i]]  # Start at depth 1 for new URLs
+                    scrapers.append(scraper)
+                    logging.info(f"Scraper {i+1} initialized with {len(url_batches[i])} URLs")
 
-            # Run scrapers on discovered URLs and get results
-            results = await asyncio.gather(*(scraper.scrape() for scraper in scrapers))
+                # Run scrapers on discovered URLs and get results
+                results = await asyncio.gather(*(scraper.scrape() for scraper in scrapers))
 
-            # Collate and sort results
-            collated_results = {}
-            for result in results:
-                collated_results.update(result)
+                # Collate and sort results
+                collated_results = {}
+                for result in results:
+                    collated_results.update(result)
 
-            # Format the collated results
-            formatted_output = format_output(collated_results, output_format)
+                # Format the collated results
+                formatted_output = format_output(collated_results, output_format)
+            else:
+                formatted_output = format_output(initial_results, output_format)
 
             # Determine output filename with current time
             filename = set_filename(output_format)

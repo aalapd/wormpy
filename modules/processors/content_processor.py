@@ -15,24 +15,31 @@ async def process_page(scraper_id, url, force_scrape_method=None, selenium_drive
     Process a page by fetching its content and extracting relevant information.
 
     Args:
+        scraper_id (int): The ID of the scraper processing this page.
         url (str): The URL of the page to process.
         force_scrape_method (str, optional): Force a specific scraping method ('req' or 'sel').
         selenium_driver (SeleniumDriver, optional): Instance of SeleniumDriver for Selenium operations.
 
     Returns:
-        tuple: A tuple containing extracted text, raw content, content type, and metadata.
+        tuple: A tuple containing content, content type, extracted text, metadata, and discovered URLs.
     """
-    content, content_type = await fetch_page(scraper_id, url, force_scrape_method=force_scrape_method, selenium_driver=selenium_driver)
-    metadata = extract_metadata(content, content_type, url)
-    
-    if content_type.lower().startswith('text/html'):
-        extracted_text = extract_text_from_html(content)
-    elif content_type.lower() == 'application/pdf' or is_pdf_url(url):
-        extracted_text = extract_text_from_pdf(url)
-    else:
-        extracted_text = f"Scraper {scraper_id}: Unsupported content type: {content_type}"
-    
-    return extracted_text, content, content_type, metadata
+    logging.info(f"Scraper {scraper_id}: Processing URL: {url}")
+    try:
+        content, content_type = await fetch_page(scraper_id, url, force_scrape_method, selenium_driver=selenium_driver)
+        metadata = extract_metadata(content, content_type, url)
+        
+        if content_type.lower().startswith('text/html'):
+            extracted_text = extract_text_from_html(content)
+        elif content_type.lower() == 'application/pdf' or is_pdf_url(url):
+            extracted_text = extract_text_from_pdf(url)
+        else:
+            extracted_text = f"Scraper {scraper_id}: Unsupported content type: {content_type}"
+        
+        discovered_urls = extract_urls(content, url, content_type)
+        return content, content_type, extracted_text, metadata, discovered_urls
+    except Exception as e:
+        logging.error(f"Scraper {scraper_id}: Error processing {url}: {str(e)}")
+        return None, None, None, None, []
 
 async def fetch_page(scraper_id, url, force_scrape_method=None, max_retries=MAX_RETRIES, initial_delay=INITIAL_RETRY_DELAY, selenium_driver=None):
     """
