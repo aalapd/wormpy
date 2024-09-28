@@ -69,7 +69,7 @@ class SeleniumDriver:
                 last_height = new_height
             
             # Wait for any remaining dynamic content
-            await asyncio.sleep(2)
+            await asyncio.sleep(5)
             
             # Check if there are any AJAX requests still pending
             is_jquery_active = await asyncio.get_event_loop().run_in_executor(
