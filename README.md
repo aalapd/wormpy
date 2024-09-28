@@ -4,17 +4,20 @@
 
 Wormpy is a Python-based web scraping tool designed to extract content from websites efficiently and respectfully. It can parse sitemaps, crawl websites up to a specified depth, and handle various content types including HTML and PDF.
 
-Read the [tutorial](https://medium.com/@aalapdavjekar/7-lessons-i-learned-while-writing-code-with-ai-b59414181da6) on how I built this.
+Please, for god's sake, make sure you use a VPN when using this!
+
+Read the [tutorial](https://medium.com/@aalapdavjekar/7-lessons-i-learned-while-writing-code-with-ai-b59414181da6) on how I built the first version of this tool.
 
 ## Features
 
+- Parallel scraping with asyncio
 - Sitemap parsing (sitemap.xml, sitemap_index.xml, etc.)
 - Fallback to HTML parsing if sitemaps are unavailable
 - Recursive URL processing up to a specified depth
 - PDF content extraction
 - Rate limiting to respect server resources
 - Flexible logging
-- Content saved to timestamped files in a scrapes directory
+- Content saved to timestamped files
 - Command-line interface for easy use
 - Image URL detection and skipping
 - Suspicious URL detection
