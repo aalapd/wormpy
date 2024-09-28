@@ -31,7 +31,7 @@ class SeleniumDriver:
 
     async def fetch_with_selenium(self, url, timeout=30, scroll_pause=1, max_scrolls=10):
         """
-        Fetch page content using Selenium for dynamic content, including infinite scrolling.
+        Fetch page content using Selenium for dynamic content.
         """
         driver = self.setup_selenium()
         try:
@@ -52,7 +52,7 @@ class SeleniumDriver:
                 )
             )
             
-            # Scroll to trigger lazy loading and handle infinite scrolling
+            # Scroll to trigger lazy loading
             last_height = await asyncio.get_event_loop().run_in_executor(
                 None, driver.execute_script, "return document.body.scrollHeight"
             )
@@ -65,14 +65,7 @@ class SeleniumDriver:
                     None, driver.execute_script, "return document.body.scrollHeight"
                 )
                 if new_height == last_height:
-                    # Check if there's a "Load More" button and click it
-                    try:
-                        load_more_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Load More')]")
-                        await asyncio.get_event_loop().run_in_executor(None, load_more_button.click)
-                        await asyncio.sleep(scroll_pause)
-                        continue
-                    except:
-                        break
+                    break
                 last_height = new_height
             
             # Wait for any remaining dynamic content

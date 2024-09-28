@@ -230,7 +230,7 @@ def extract_text_from_pdf(file_path_or_url):
 
 def is_dynamic_content(content):
     """
-    Check if the content is likely to be dynamic based on various indicators.
+    Check if the content is likely to be dynamic based on the amount of text.
 
     Args:
         content (bytes): The page content.
@@ -241,27 +241,8 @@ def is_dynamic_content(content):
     if content is None:
         return True  # Assume dynamic if content is None
     try:
-        decoded_content = content.decode('utf-8')
-        soup = BeautifulSoup(decoded_content, 'html.parser')
-        
-        # Check for common indicators of dynamic content
-        indicators = [
-            soup.find('script', src=lambda x: x and 'jquery' in x.lower()),
-            soup.find('script', text=lambda x: x and 'ajax' in x.lower()),
-            soup.find('div', class_=lambda x: x and 'infinite' in x.lower()),
-            soup.find('button', text=lambda x: x and 'load more' in x.lower()),
-            soup.find('a', text=lambda x: x and 'show more' in x.lower())
-        ]
-        
-        if any(indicators):
-            return True
-        
-        # Check for minimal text content
-        text = extract_text_from_html(decoded_content)
-        if len(text) < 500:  # Adjust this threshold as needed
-            return True
-        
-        return False
+        text = extract_text_from_html(content.decode('utf-8'))
+        return len(text) < 500  # Adjust this threshold as needed
     except Exception as e:
-        logging.warning(f"Error in is_dynamic_content: {e}")
-        return True  # Assume dynamic if there's an error
+        logging.warning(f"Error in is_likely_dynamic: {e}")
+        return True  # Assume dynamic if there's an errorerror
