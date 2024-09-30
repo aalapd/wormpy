@@ -29,3 +29,12 @@ RATE_LIMIT_MAX = 5
 
 # Max number of scrapers to use
 MAX_SIMULTANEOUS_SCRAPERS = 12
+
+# Proxy-related settings
+PROXY_TEST_URL = "http://httpbin.org/ip"
+MAX_PROXIES = 100 # Number of proxies to keep in rotation
+PROXY_TIMEOUT = 20
+PROXY_REFRESH_THRESHOLD = 10  # Refresh proxy list when available proxies fall below this number
+COUNTRY = "us"
+SSL = "no"
+ANONYMITY = "elite"

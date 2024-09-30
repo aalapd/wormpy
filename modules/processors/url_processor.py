@@ -59,7 +59,7 @@ def normalize_url(url: str) -> str:
     Returns:
         str: The normalized URL.
     """
-    parsed = urlparse(url)
+    parsed = urlparse(url.lower())
     scheme = parsed.scheme or 'https'  # Default to https if no scheme is provided
     path = parsed.path.rstrip('/')  # Remove trailing slash from path
     return f"{scheme}://{parsed.netloc}{path}"

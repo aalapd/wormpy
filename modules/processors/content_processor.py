@@ -1,3 +1,5 @@
+# content_processor.py
+
 import requests
 import io
 import logging
@@ -6,7 +8,6 @@ import PyPDF2
 import json
 from bs4 import BeautifulSoup
 from .url_processor import is_pdf_url, extract_urls
-from .selenium_processor import SeleniumDriver
 from ..utils import get_pdf_data
 from config import HEADERS, REQUEST_TIMEOUT, MAX_RETRIES, INITIAL_RETRY_DELAY
 
@@ -23,24 +24,27 @@ async def process_page(scraper_id, url, force_scrape_method=None, selenium_drive
     Returns:
         tuple: A tuple containing content, content type, extracted text, metadata, and discovered URLs.
     """
-    logging.info(f"Scraper {scraper_id}: Processing URL: {url}")
     try:
         content, content_type, fetched_urls = await fetch_page(scraper_id, url, force_scrape_method, selenium_driver=selenium_driver)
-        
+
         # Convert content to string if it's bytes
         if isinstance(content, bytes):
             content = content.decode('utf-8', errors='replace')
-        
+
+        # Extract metadata
         metadata = extract_metadata(content, content_type, url)
-        
+
+        # Extract text
         if content_type.lower().startswith('text/html'):
             extracted_text = extract_text_from_html(content)
         elif content_type.lower() == 'application/pdf' or is_pdf_url(url):
             extracted_text = extract_text_from_pdf(url)
         else:
             extracted_text = f"Scraper {scraper_id}: Unsupported content type: {content_type}"
-        
+
+        # Extract URLs
         discovered_urls = fetched_urls if fetched_urls else extract_urls(content, url, content_type)
+
         return content, content_type, extracted_text, metadata, discovered_urls
     except Exception as e:
         logging.error(f"Scraper {scraper_id}: Error processing {url}: {str(e)}")
@@ -51,6 +55,7 @@ async def fetch_page(scraper_id, url, force_scrape_method=None, max_retries=MAX_
     Fetch page content, trying static first and then dynamic if needed.
 
     Args:
+        scraper_id (int): The ID of the scraper fetching the page.
         url (str): The URL to fetch.
         force_scrape_method (str, optional): Force the use of 'req' for requests or 'sel' for selenium.
         max_retries (int): Maximum number of retry attempts.
@@ -58,7 +63,7 @@ async def fetch_page(scraper_id, url, force_scrape_method=None, max_retries=MAX_
         selenium_driver (SeleniumDriver, optional): Instance of SeleniumDriver for Selenium operations.
 
     Returns:
-        tuple: A tuple containing the page content and content type.
+        tuple: A tuple containing the page content, content type, and discovered URLs.
 
     Raises:
         Exception: If unable to fetch the page after max_retries.
@@ -66,37 +71,46 @@ async def fetch_page(scraper_id, url, force_scrape_method=None, max_retries=MAX_
     for attempt in range(max_retries):
         try:
             logging.info(f"Scraper {scraper_id}: Attempting to fetch content from URL: {url}")
-            
+
             if force_scrape_method == 'sel':
                 logging.info(f"Scraper {scraper_id}: Forcing Selenium for {url}")
                 if selenium_driver is None:
-                    selenium_driver = SeleniumDriver()
+                    raise Exception("Selenium driver not provided")
                 content, content_type, discovered_urls = await selenium_driver.fetch_with_selenium(url)
                 if content is None:
                     raise Exception(f"Scraper {scraper_id}: Selenium fetch failed!")
             else:
                 # Try with requests first
+                proxies = {
+                    "http": "138.68.60.8:8080",
+                    #"https": "https://160.86.242.23:8080",
+                }
                 response = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
+                    None, lambda: requests.get(
+                        url,
+                        headers=HEADERS,
+                        timeout=REQUEST_TIMEOUT,
+                        #proxies=proxies
+                    )
                 )
                 response.raise_for_status()
                 content = response.content
                 content_type = response.headers.get('Content-Type', '')
                 discovered_urls = []
-                
+
                 # Check if the content is likely to be dynamic
                 if force_scrape_method != 'req' and is_dynamic_content(content):
                     logging.info(f"Scraper {scraper_id}: Content seems dynamic, switching to Selenium for {url}")
                     if selenium_driver is None:
-                        selenium_driver = SeleniumDriver()
+                        raise Exception("Selenium driver not provided for dynamic content")
                     content, content_type, discovered_urls = await selenium_driver.fetch_with_selenium(url)
                     if content is None:
                         raise Exception(f"Scraper {scraper_id}: Selenium fetch failed!")
-                
+
             logging.info(f"Scraper {scraper_id}: Successfully fetched content from URL: {url}")
             return content, content_type, discovered_urls
         except (requests.RequestException, Exception) as e:
-            logging.warning(f"Scraper {scraper_id}: Error fetching content from URL {url} (attempt {attempt + 1}/{max_retries}): {str(e)}")    
+            logging.warning(f"Scraper {scraper_id}: Error fetching content from URL {url} (attempt {attempt + 1}/{max_retries}): {str(e)}")
             if attempt < max_retries - 1:
                 delay = initial_delay * (2 ** attempt)
                 logging.info(f"Scraper {scraper_id}: Retrying in {delay} seconds...")
@@ -108,12 +122,12 @@ async def fetch_page(scraper_id, url, force_scrape_method=None, max_retries=MAX_
 def extract_metadata(content, content_type, url):
     """
     Extract metadata from the content based on its type.
-    
+
     Args:
         content (bytes or str): The raw content of the page.
         content_type (str): The content type of the page.
         url (str): The URL of the page.
-    
+
     Returns:
         dict: A dictionary containing the extracted metadata.
     """
@@ -121,24 +135,24 @@ def extract_metadata(content, content_type, url):
         'url': url,
         'content_type': content_type,
     }
-    
+
     if content_type.lower().startswith('text/html'):
         soup = BeautifulSoup(content, 'html.parser')
-        
+
         # Extract title
         metadata['title'] = soup.title.string if soup.title else None
-        
+
         # Extract meta tags
         for meta in soup.find_all('meta'):
             if 'name' in meta.attrs and 'content' in meta.attrs:
                 metadata[meta['name'].lower()] = meta['content']
             elif 'property' in meta.attrs and 'content' in meta.attrs:
                 metadata[meta['property'].lower()] = meta['content']
-        
+
         # Extract Open Graph metadata
         for og in soup.find_all('meta', property=lambda x: x and x.startswith('og:')):
             metadata[og['property']] = og['content']
-        
+
         # Extract schema.org metadata
         for schema in soup.find_all('script', type='application/ld+json'):
             try:
@@ -146,7 +160,7 @@ def extract_metadata(content, content_type, url):
                 metadata['schema_org'] = schema_data
             except json.JSONDecodeError:
                 logging.warning(f"Failed to parse schema.org data for {url}")
-        
+
     elif content_type.lower() == 'application/pdf':
         try:
             pdf_file = get_pdf_data(url)
@@ -155,17 +169,17 @@ def extract_metadata(content, content_type, url):
                 metadata.update(reader.metadata)
         except Exception as e:
             logging.error(f"Error extracting PDF metadata from {url}: {str(e)}")
-    
+
     # Add logic for other content types here in the future
-    
+
     return metadata
 
 def extract_text_from_html(html):
     """
     Extract text content from HTML, removing unwanted elements and formatting.
 
-    This function parses HTML content, removes unwanted elements (such as scripts, 
-    styles, navigation, headers, footers, asides, and hidden elements), and 
+    This function parses HTML content, removes unwanted elements (such as scripts,
+    styles, navigation, headers, footers, asides, and hidden elements), and
     extracts the remaining text content.
 
     Args:
@@ -183,11 +197,11 @@ def extract_text_from_html(html):
     """
     try:
         soup = BeautifulSoup(html, 'html.parser')
-        
+
         # Remove script, style, and other unwanted elements
         for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside']):
             element.decompose()
-        
+
         # Remove hidden elements
         for hidden in soup.find_all(style=lambda value: value and "display:none" in value):
             hidden.decompose()
@@ -195,15 +209,14 @@ def extract_text_from_html(html):
         # Remove elements with "hidden" in their class names
         for hidden_class in soup.find_all(class_=lambda x: x and 'hidden' in x):
             hidden_class.decompose()
-        
+
         # Get text
         text = soup.get_text(separator='\n', strip=True)
-        
+
         # Remove excessive newlines and whitespace
         lines = (line.strip() for line in text.splitlines())
         text = '\n'.join(line for line in lines if line)
-        
-        #logging.info("Successfully extracted text from HTML content")
+
         return text
     except Exception as e:
         logging.error(f"Error extracting text from HTML content: {e}")
@@ -212,20 +225,18 @@ def extract_text_from_html(html):
 def extract_text_from_pdf(file_path_or_url):
     """
     Extract text content from a PDF file.
-    
+
     :param file_path_or_url: Local file path or URL of the PDF file
     :return: Extracted text content as a string
     """
     try:
-        
         pdf_file = get_pdf_data(file_path_or_url)
         # Create a PDF reader object
         pdf_reader = PyPDF2.PdfReader(pdf_file)
-        
+
         # Extract text from all pages
         text_content = "\n".join(page.extract_text() for page in pdf_reader.pages)
-        
-        #logging.info(f"Successfully extracted text from PDF: {file_path_or_url}")
+
         return text_content.strip()
 
     except requests.RequestException as e:
@@ -257,5 +268,5 @@ def is_dynamic_content(content):
         text = extract_text_from_html(content.decode('utf-8'))
         return len(text) < 500  # Adjust this threshold as needed
     except Exception as e:
-        logging.warning(f"Error in is_likely_dynamic: {e}")
-        return True  # Assume dynamic if there's an errorerror
+        logging.warning(f"Error in is_dynamic_content: {e}")
+        return True  # Assume dynamic if there's an error

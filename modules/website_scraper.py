@@ -33,13 +33,18 @@ class WebsiteScraper:
         self.max_depth = max_depth
         self.scraper_id = scraper_id
         self.force_scrape_method = force_scrape_method
-        self.selenium_driver = SeleniumDriver() if force_scrape_method == 'sel' else None
+        self.selenium_driver = None
         self.rate_limiter = AsyncRateLimiter()
         self.all_discovered_urls = set()
         self.processed_urls = set()
         self.error_urls = set()
         self.urls_to_process = [(base_url, 0)]  # (url, depth)
         self.results = {}
+    
+    def get_selenium_driver(self):
+        if self.selenium_driver is None:
+            self.selenium_driver = SeleniumDriver()
+        return self.selenium_driver
 
     async def scrape(self):
         """
@@ -64,7 +69,6 @@ class WebsiteScraper:
                 if normalized_url in self.processed_urls or normalized_url in self.error_urls:
                     continue
 
-                logging.info(f"Scraper {self.scraper_id}: Processing URL (depth {depth}): {current_url}")
 
                 if is_suspicious_url(current_url):
                     if is_image_content_type(current_url):
@@ -72,13 +76,14 @@ class WebsiteScraper:
                         continue
 
                 try:
+                    logging.info(f"Scraper {self.scraper_id}: Attempting to process URL (depth {depth}): {current_url}")
                     domain = get_domain(current_url)
                     await self.rate_limiter.wait(domain)
                     content, content_type, extracted_text, metadata, discovered_urls = await process_page(
                         self.scraper_id,
                         current_url, 
                         self.force_scrape_method, 
-                        selenium_driver=self.selenium_driver,
+                        selenium_driver=self.get_selenium_driver(),
                     )
                     
                     # Normalize all discovered URLs

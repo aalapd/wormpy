@@ -1,8 +1,11 @@
 # Scraped data
-/scrapes/*
+scrapes/*
 
 # Tests
 /tests/
+
+# Drivers
+modules/processors/drivers/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
