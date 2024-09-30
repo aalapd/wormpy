@@ -18,7 +18,7 @@ HEADERS = {
 REQUEST_TIMEOUT = 10
 
 # Maximum number of retries for fetching content
-MAX_RETRIES = 3
+MAX_RETRIES = 2
 
 # Initial delay for retry (in seconds)
 INITIAL_RETRY_DELAY = 1

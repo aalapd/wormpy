@@ -102,7 +102,7 @@ async def fetch_page(scraper_id, url, force_scrape_method=None, max_retries=MAX_
                 if force_scrape_method != 'req' and is_dynamic_content(content):
                     logging.info(f"Scraper {scraper_id}: Content seems dynamic, switching to Selenium for {url}")
                     if selenium_driver is None:
-                        raise Exception("Selenium driver not provided for dynamic content")
+                        raise Exception("Could not get Selenium driver for dynamic content")
                     content, content_type, discovered_urls = await selenium_driver.fetch_with_selenium(url)
                     if content is None:
                         raise Exception(f"Scraper {scraper_id}: Selenium fetch failed!")

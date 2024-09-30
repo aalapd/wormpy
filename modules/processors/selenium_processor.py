@@ -1,3 +1,5 @@
+# selenium_processor.py
+
 import os
 import sys
 import logging
@@ -11,6 +13,7 @@ from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from config import MAX_RETRIES
 
 logger = logging.getLogger(__name__)
 
@@ -128,74 +131,81 @@ class SeleniumDriver:
             tuple: (page_source, content_type, discovered_urls)
         """
         driver = self.setup_selenium()
-        try:
-            await asyncio.get_event_loop().run_in_executor(None, driver.get, url)
-            
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                WebDriverWait(driver, timeout).until,
-                EC.presence_of_element_located((By.TAG_NAME, "body"))
-            )
-
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: WebDriverWait(driver, timeout).until(
-                    lambda d: d.execute_script('return document.readyState') == 'complete'
-                )
-            )
-
-            last_height = await asyncio.get_event_loop().run_in_executor(
-                None, driver.execute_script, "return document.body.scrollHeight"
-            )
-            for _ in range(max_scrolls):
+        for attempt in range(MAX_RETRIES):
+            try:
+                await asyncio.get_event_loop().run_in_executor(None, driver.get, url)
+                
                 await asyncio.get_event_loop().run_in_executor(
-                    None, driver.execute_script, "window.scrollTo(0, document.body.scrollHeight);"
+                    None,
+                    WebDriverWait(driver, timeout).until,
+                    EC.presence_of_element_located((By.TAG_NAME, "body"))
                 )
-                await asyncio.sleep(scroll_pause)
-                new_height = await asyncio.get_event_loop().run_in_executor(
-                    None, driver.execute_script, "return document.body.scrollHeight"
-                )
-                if new_height == last_height:
-                    try:
-                        load_more_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Load More')]")
-                        await asyncio.get_event_loop().run_in_executor(None, load_more_button.click)
-                        await asyncio.sleep(scroll_pause)
-                        continue
-                    except Exception as e:
-                        logger.debug(f"No 'Load More' button found or error clicking it: {str(e)}")
-                        break
-                last_height = new_height
 
-            await asyncio.sleep(5)
-
-            is_jquery_active = await asyncio.get_event_loop().run_in_executor(
-                None, driver.execute_script, "return window.jQuery && jQuery.active > 0"
-            )
-            if is_jquery_active:
                 await asyncio.get_event_loop().run_in_executor(
                     None,
                     lambda: WebDriverWait(driver, timeout).until(
-                        lambda d: d.execute_script("return window.jQuery && jQuery.active == 0")
+                        lambda d: d.execute_script('return document.readyState') == 'complete'
                     )
                 )
 
-            page_source = await asyncio.get_event_loop().run_in_executor(None, lambda: driver.page_source)
-            content_type = await asyncio.get_event_loop().run_in_executor(
-                None, driver.execute_script, "return document.contentType || 'text/html';"
-            )
-            
-            if isinstance(page_source, bytes):
-                page_source = page_source.decode('utf-8', errors='ignore')
-            elif page_source is None:
-                logger.error(f"Failed to retrieve page source for {url}")
-                return None, None, []
+                last_height = await asyncio.get_event_loop().run_in_executor(
+                    None, driver.execute_script, "return document.body.scrollHeight"
+                )
+                for _ in range(max_scrolls):
+                    await asyncio.get_event_loop().run_in_executor(
+                        None, driver.execute_script, "window.scrollTo(0, document.body.scrollHeight);"
+                    )
+                    await asyncio.sleep(scroll_pause)
+                    new_height = await asyncio.get_event_loop().run_in_executor(
+                        None, driver.execute_script, "return document.body.scrollHeight"
+                    )
+                    if new_height == last_height:
+                        try:
+                            load_more_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Load More')]")
+                            await asyncio.get_event_loop().run_in_executor(None, load_more_button.click)
+                            await asyncio.sleep(scroll_pause)
+                            continue
+                        except Exception as e:
+                            logger.debug(f"No 'Load More' button found or error clicking it: {str(e)}")
+                            break
+                    last_height = new_height
 
-            discovered_urls = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: list(set(filter(None, [element.get_attribute('href') for element in driver.find_elements(By.TAG_NAME, 'a')])))
-            )
+                await asyncio.sleep(5)
 
-            return page_source, content_type, discovered_urls
-        except Exception as e:
-            logger.error(f"Selenium error fetching {url}: {str(e)}")
-            return None, None, []
+                is_jquery_active = await asyncio.get_event_loop().run_in_executor(
+                    None, driver.execute_script, "return window.jQuery && jQuery.active > 0"
+                )
+                if is_jquery_active:
+                    await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: WebDriverWait(driver, timeout).until(
+                            lambda d: d.execute_script("return window.jQuery && jQuery.active == 0")
+                        )
+                    )
+
+                page_source = await asyncio.get_event_loop().run_in_executor(None, lambda: driver.page_source)
+                content_type = await asyncio.get_event_loop().run_in_executor(
+                    None, driver.execute_script, "return document.contentType || 'text/html';"
+                )
+                
+                if isinstance(page_source, bytes):
+                    page_source = page_source.decode('utf-8', errors='ignore')
+                elif page_source is None:
+                    logger.error(f"Failed to retrieve page source for {url}")
+                    return None, None, []
+
+                discovered_urls = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: list(set(filter(None, [element.get_attribute('href') for element in driver.find_elements(By.TAG_NAME, 'a')])))
+                )
+
+                return page_source, content_type, discovered_urls
+            except Exception as e:
+                if attempt < MAX_RETRIES - 1:
+                    logger.warning(f"Attempt {attempt + 1} failed. Retrying...")
+                    self.quit_selenium()  # Close the current driver
+                    self.driver = None    # Reset the driver
+                    await asyncio.sleep(3)  # Wait before retrying
+                else:
+                    logger.error(f"All attempts failed for {url}: {str(e)}")
+                    return None, None, []

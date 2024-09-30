@@ -2,6 +2,7 @@
 
 import logging
 import asyncio
+from selenium.common.exceptions import WebDriverException
 from .processors.url_processor import normalize_url, is_suspicious_url, extract_urls, is_valid_url, get_domain
 from .processors.content_processor import process_page
 from .processors.selenium_processor import SeleniumDriver
@@ -111,6 +112,15 @@ class WebsiteScraper:
 
                     if depth < self.max_depth:
                         self.urls_to_process.extend((url, depth + 1) for url in sorted_urls_for_processing)
+                        logging.info(f"Scraper {self.scraper_id}: Found {len(self.urls_to_process)} URLs to process...")
+
+                except WebDriverException as e: # To catch Selenium exceptions and handle them appropriately
+                    error_message = f"Scraper {self.scraper_id}: Selenium error processing {current_url}: {str(e)}"
+                    logging.error(error_message)
+                    self.selenium_driver.quit_selenium()  # Close the current driver
+                    self.selenium_driver = None  # Reset the driver
+                    # Optionally, you might want to retry this URL later
+                    # self.urls_to_process.append((current_url, depth))
 
                 except Exception as e:
                     error_message = f"Scraper {self.scraper_id}: Error processing {current_url}: {str(e)}"
