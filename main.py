@@ -139,11 +139,22 @@ def main() -> None:
     
     base_url = normalize_url(args.url)
 
+    # Create a dictionary with all configuration settings and flags
+    config = {
+        "url": base_url,
+        "depth": args.depth,
+        "log_level": args.log,
+        "save_directory": args.savename or get_domain(base_url),
+        "output_format": args.format,
+        "force_scrape_method": args.force
+    }
+
     try:
         configure_logging(log_level=args.log)
         logging = get_logger(__name__)
 
         logging.info("Starting web scraping process...")
+        logging.info(f"Initial configuration: {config}")
 
         if not is_valid_url(base_url, base_url):
             raise ValueError("Invalid URL provided.")
@@ -169,6 +180,16 @@ def main() -> None:
         end_time = time.time()
         elapsed_time = end_time - start_time
         logging.info(f"Time taken: {elapsed_time:.2f} seconds.")
+
+        # Log the final configuration and statistics
+        final_stats = {
+            **config,
+            "total_urls_scraped": total_urls_scraped if 'total_urls_scraped' in locals() else None,
+            "elapsed_time": f"{elapsed_time:.2f} seconds",
+            "output_file": full_filepath if 'full_filepath' in locals() else None,
+            "log_file": log_filepath if 'log_filepath' in locals() else None
+        }
+        logging.info(f"Final configuration and statistics: {final_stats}")
 
 if __name__ == "__main__":
     main()
