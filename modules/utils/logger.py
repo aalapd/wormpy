@@ -9,6 +9,10 @@ from functools import wraps
 from typing import Any, Callable, Dict, Optional
 import asyncio
 
+class SimpleFormatter(logging.Formatter):
+    def __init__(self):
+        super().__init__('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
 class JSONFormatter(logging.Formatter):
     def format(self, record):
         log_record = {
@@ -39,35 +43,39 @@ def configure_logging(
     max_file_size: int = 10 * 1024 * 1024,  # 10 MB
     backup_count: int = 5,
     sensitive_patterns: Optional[list] = None,
+    use_json: bool = False
 ):
-    # Check if the logger has already been configured
-    if not logging.getLogger().handlers:
-        root_logger = logging.getLogger()
-        root_logger.setLevel(log_level)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
 
-        formatter = JSONFormatter()
+    # Remove all existing handlers
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
 
-        # Console handler
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(formatter)
-        root_logger.addHandler(console_handler)
+    formatter = JSONFormatter() if use_json else SimpleFormatter()
 
-        # File handler (if log_file is specified)
-        if log_file:
-            file_handler = RotatingFileHandler(
-                log_file, maxBytes=max_file_size, backupCount=backup_count
-            )
-            file_handler.setFormatter(formatter)
-            root_logger.addHandler(file_handler)
+    # Console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
 
-        # Sensitive data filter
-        if sensitive_patterns:
-            sensitive_filter = SensitiveDataFilter(sensitive_patterns)
-            for handler in root_logger.handlers:
-                handler.addFilter(sensitive_filter)
-    else:
-        # If already configured, just set the log level
-        logging.getLogger().setLevel(log_level)
+    # File handler (if log_file is specified)
+    if log_file:
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        file_handler = RotatingFileHandler(
+            log_file, maxBytes=max_file_size, backupCount=backup_count
+        )
+        file_handler.setFormatter(formatter)
+        root_logger.addHandler(file_handler)
+
+    # Sensitive data filter
+    if sensitive_patterns:
+        sensitive_filter = SensitiveDataFilter(sensitive_patterns)
+        for handler in root_logger.handlers:
+            handler.addFilter(sensitive_filter)
+
+    # Log the configuration
+    root_logger.info(f"Logging configured. Level: {log_level}, File: {log_file if log_file else 'None'}")
 
 def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)

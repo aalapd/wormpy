@@ -11,6 +11,8 @@ import argparse
 import asyncio
 import time
 from typing import Dict, Any, Tuple
+from datetime import datetime
+import os
 
 from config import MAX_SIMULTANEOUS_SCRAPERS
 from modules.utils.logger import configure_logging, get_logger, log_exception
@@ -44,6 +46,7 @@ async def run_scraping(
         Tuple[Dict[str, Any], int]: A tuple containing the formatted output
         and the total number of URLs scraped.
     """
+    logging = get_logger(__name__)
     normalized_base_url = normalize_url(base_url)
     initial_scraper_config = {
         'base_url': normalized_base_url,
@@ -51,9 +54,9 @@ async def run_scraping(
         'force_scrape_method': force_scrape_method
     }
 
-    #logging.info("Starting initial scraper for URL discovery.")
+    logging.info("Starting initial scraper for URL discovery...")
     initial_results = await run_init_scraper(initial_scraper_config)
-    #logging.info("Initial scraper finished. Processing results.")
+    logging.info("Initial scraper finished. Processing results.")
 
     all_discovered_urls = set()
     for result in initial_results.values():
@@ -62,7 +65,7 @@ async def run_scraping(
             if url_matches_base(url, normalized_base_url)
         )
 
-    #logging.info(f"Total URLs found on target URL: {len(all_discovered_urls)}")
+    logging.info(f"Total URLs found on target URL: {len(all_discovered_urls)}")
 
     if max_depth > 0 and all_discovered_urls:
         url_batches = [
@@ -80,7 +83,7 @@ async def run_scraping(
             )
             scraper.urls_to_process = [(url, 1) for url in batch]
             scrapers.append(scraper)
-            #logging.info(f"Scraper {i+1} initialized with {len(batch)} URLs")
+            logging.info(f"Scraper {i+1} initialized with {len(batch)} URLs")
 
         results = await asyncio.gather(*(scraper.scrape() for scraper in scrapers))
 
@@ -97,7 +100,8 @@ async def run_scraping(
     return formatted_output, total_urls_scraped
 
 def get_sitemap(url):
-    #logging.info("Fetching sitemap...")
+    logging = get_logger(__name__)
+    logging.info("Fetching sitemap...")
     return get_all_urls(url)
 
 def main() -> None:
@@ -149,18 +153,22 @@ def main() -> None:
         "force_scrape_method": args.force
     }
 
-    try:
-        configure_logging(log_level=args.log)
-        logging = get_logger(__name__)
+    # Set up logging earlier
+    log_filename = f"scrape_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    log_filepath = os.path.join('scrapes', config['save_directory'], log_filename)
 
+    configure_logging(log_level=args.log, log_file=log_filepath, use_json=False)
+    logging = get_logger(__name__)
+
+    try:
+        logging.info(f"Initial scraper config: {config}")
         logging.info("Starting web scraping process...")
-        logging.info(f"Initial configuration: {config}")
 
         if not is_valid_url(base_url, base_url):
-            raise ValueError("Invalid URL provided.")
+            raise ValueError("Invalid URL provided!")
 
         if args.depth < 0:
-            raise ValueError("Depth must be greater than or equal to zero.")
+            raise ValueError("Depth must be greater than or equal to zero!")
 
         formatted_output, total_urls_scraped = asyncio.run(
             run_scraping(base_url, args.depth, args.force, args.format)
@@ -168,10 +176,9 @@ def main() -> None:
 
         filename = set_filename(args.format)
         folder_name = args.savename or get_domain(base_url)
-        full_filepath, log_filepath = save_output(formatted_output, folder_name, filename, args.format)
+        full_filepath = save_output(formatted_output, folder_name, filename, args.format)
 
         logging.info(f"Scraping complete. Saved output to {full_filepath}.")
-        logging.info(f"Log file saved to {log_filepath}.")
         logging.info(f"Total URLs scraped: {total_urls_scraped}")
 
     except Exception as e:
@@ -180,16 +187,6 @@ def main() -> None:
         end_time = time.time()
         elapsed_time = end_time - start_time
         logging.info(f"Time taken: {elapsed_time:.2f} seconds.")
-
-        # Log the final configuration and statistics
-        final_stats = {
-            **config,
-            "total_urls_scraped": total_urls_scraped if 'total_urls_scraped' in locals() else None,
-            "elapsed_time": f"{elapsed_time:.2f} seconds",
-            "output_file": full_filepath if 'full_filepath' in locals() else None,
-            "log_file": log_filepath if 'log_filepath' in locals() else None
-        }
-        logging.info(f"Final configuration and statistics: {final_stats}")
 
 if __name__ == "__main__":
     main()
