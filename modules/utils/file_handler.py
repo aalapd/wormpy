@@ -1,7 +1,9 @@
 import os
 import csv
 import json
-import logging
+
+from modules.utils.logger import get_logger
+logging = get_logger(__name__)
 
 def save_output(data, domain, filename, output_format):
     """

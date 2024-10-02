@@ -13,12 +13,12 @@ import time
 # Add the project root directory to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from modules.website_scraper import scrape_website
+from modules.scraper import scrape_website
 from modules.processors.url_processor import normalize_url, is_suspicious_url, is_image_content_type, extract_urls, get_domain, is_pdf_url
 from modules.processors.content_processor import extract_text_from_html, extract_text_from_pdf, process_page, RateLimiter, fetch_page
-from modules.file_handler import initialize_output_file, write_to_file, finalize_file
-from modules.utils import is_valid_url
-from modules.sitemap_parser import parse_sitemap
+from modules.utils.file_handler import initialize_output_file, write_to_file, finalize_file
+from modules.utils.utils import is_valid_url
+from modules.utils.sitemap_parser import parse_sitemap
 
 class TestScraper(unittest.TestCase):
     BASE_URL = "https://webscraper.io/test-sites/tables/tables-semantically-correct"

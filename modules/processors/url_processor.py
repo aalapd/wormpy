@@ -16,10 +16,12 @@ Functions:
 """
 
 import requests
-import logging
 from urllib.parse import urljoin, urlparse, parse_qs
 from bs4 import BeautifulSoup
-from ..utils import is_image_file_extension
+from ..utils.utils import is_image_file_extension
+
+from modules.utils.logger import get_logger
+logging = get_logger(__name__)
 
 def get_domain(url: str) -> str:
     """

@@ -2,14 +2,16 @@
 
 import requests
 import io
-import logging
 import asyncio
 import PyPDF2
 import json
 from bs4 import BeautifulSoup
 from .url_processor import is_pdf_url, extract_urls
-from ..utils import get_pdf_data
+from ..utils.utils import get_pdf_data
 from config import HEADERS, REQUEST_TIMEOUT, MAX_RETRIES, INITIAL_RETRY_DELAY
+
+from modules.utils.logger import get_logger
+logger = get_logger(__name__)
 
 async def process_page(scraper_id, url, force_scrape_method=None, selenium_driver=None):
     """
@@ -47,7 +49,7 @@ async def process_page(scraper_id, url, force_scrape_method=None, selenium_drive
 
         return content, content_type, extracted_text, metadata, discovered_urls
     except Exception as e:
-        logging.error(f"Scraper {scraper_id}: Error processing {url}: {str(e)}")
+        logger.error("Scraper %d: Error processing %s: %s", url, str(e))
         return None, None, None, None, []
 
 async def fetch_page(scraper_id, url, force_scrape_method=None, max_retries=MAX_RETRIES, initial_delay=INITIAL_RETRY_DELAY, selenium_driver=None):
@@ -70,15 +72,15 @@ async def fetch_page(scraper_id, url, force_scrape_method=None, max_retries=MAX_
     """
     for attempt in range(max_retries):
         try:
-            logging.info(f"Scraper {scraper_id}: Attempting to fetch content from URL: {url}")
+            logger.info("Scraper %d: Attempting to fetch content from URL: %s", scraper_id, url)
 
             if force_scrape_method == 'sel':
-                logging.info(f"Scraper {scraper_id}: Forcing Selenium for {url}")
+                logger.info("Scraper %d: Forcing Selenium for %s", scraper_id, url)
                 if selenium_driver is None:
                     raise Exception("Selenium driver not provided")
                 content, content_type, discovered_urls = await selenium_driver.fetch_with_selenium(url)
                 if content is None:
-                    raise Exception(f"Scraper {scraper_id}: Selenium fetch failed!")
+                    raise Exception("Scraper %d: Selenium fetch failed!", scraper_id)
             else:
                 # Try with requests first
                 proxies = {
@@ -100,23 +102,25 @@ async def fetch_page(scraper_id, url, force_scrape_method=None, max_retries=MAX_
 
                 # Check if the content is likely to be dynamic
                 if force_scrape_method != 'req' and is_dynamic_content(content):
-                    logging.info(f"Scraper {scraper_id}: Content seems dynamic, switching to Selenium for {url}")
+                    logger.info("Scraper %d: Content seems dynamic, switching to Selenium for %s", scraper_id, url)
                     if selenium_driver is None:
                         raise Exception("Could not get Selenium driver for dynamic content")
                     content, content_type, discovered_urls = await selenium_driver.fetch_with_selenium(url)
                     if content is None:
-                        raise Exception(f"Scraper {scraper_id}: Selenium fetch failed!")
+                        raise Exception("Scraper %d: Selenium fetch failed!", scraper_id)
 
-            logging.info(f"Scraper {scraper_id}: Successfully fetched content from URL: {url}")
+            logger.info("Scraper %d: Successfully fetched content from URL: %s", url)
             return content, content_type, discovered_urls
         except (requests.RequestException, Exception) as e:
-            logging.warning(f"Scraper {scraper_id}: Error fetching content from URL {url} (attempt {attempt + 1}/{max_retries}): {str(e)}")
+            logger.warning("Scraper %d: Error fetching content from URL %s (attempt %d/%d): %s", 
+                           scraper_id, url, attempt + 1, max_retries, str(e))
             if attempt < max_retries - 1:
                 delay = initial_delay * (2 ** attempt)
-                logging.info(f"Scraper {scraper_id}: Retrying in {delay} seconds...")
+                logger.info("Scraper %d: Retrying in %d seconds...", scraper_id, delay)
                 await asyncio.sleep(delay)
             else:
-                logging.error(f"Scraper {scraper_id}: Failed to fetch content from URL {url} after {max_retries} attempts!")
+                logger.error("Scraper %d: Failed to fetch content from URL %s after %d attempts!", 
+                             scraper_id, url, max_retries)
                 raise
 
 def extract_metadata(content, content_type, url):
@@ -159,7 +163,7 @@ def extract_metadata(content, content_type, url):
                 schema_data = json.loads(schema.string)
                 metadata['schema_org'] = schema_data
             except json.JSONDecodeError:
-                logging.warning(f"Failed to parse schema.org data for {url}")
+                logger.warning("Failed to parse schema.org data for %s", url)
 
     elif content_type.lower() == 'application/pdf':
         try:
@@ -168,7 +172,7 @@ def extract_metadata(content, content_type, url):
             if reader.metadata:
                 metadata.update(reader.metadata)
         except Exception as e:
-            logging.error(f"Error extracting PDF metadata from {url}: {str(e)}")
+            logger.error("Error extracting PDF metadata from %s: %s", url, str(e))
 
     # Add logic for other content types here in the future
 
@@ -219,7 +223,7 @@ def extract_text_from_html(html):
 
         return text
     except Exception as e:
-        logging.error(f"Error extracting text from HTML content: {e}")
+        logger.error("Error extracting text from HTML content: %s", str(e))
         raise
 
 def extract_text_from_pdf(file_path_or_url):
@@ -240,13 +244,13 @@ def extract_text_from_pdf(file_path_or_url):
         return text_content.strip()
 
     except requests.RequestException as e:
-        logging.error(f"Error fetching PDF from URL {file_path_or_url}: {str(e)}")
+        logger.error("Error fetching PDF from URL %s: %s", file_path_or_url, str(e))
         return f"Error fetching PDF: {str(e)}"
     except PyPDF2.errors.PdfReadError as e:
-        logging.error(f"Error reading PDF {file_path_or_url}: {str(e)}")
+        logger.error("Error reading PDF %s: %s", file_path_or_url, str(e))
         return f"Error reading PDF: {str(e)}"
     except Exception as e:
-        logging.error(f"Unexpected error processing PDF {file_path_or_url}: {str(e)}")
+        logger.error("Unexpected error processing PDF %s: %s", file_path_or_url, str(e))
         return f"Unexpected error: {str(e)}"
     finally:
         if pdf_file and not isinstance(pdf_file, io.BytesIO):
@@ -268,5 +272,5 @@ def is_dynamic_content(content):
         text = extract_text_from_html(content.decode('utf-8'))
         return len(text) < 500  # Adjust this threshold as needed
     except Exception as e:
-        logging.warning(f"Error in is_dynamic_content: {e}")
+        logger.warning("Error in is_dynamic_content: %s", str(e))
         return True  # Assume dynamic if there's an error

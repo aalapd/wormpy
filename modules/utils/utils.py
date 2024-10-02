@@ -1,5 +1,4 @@
 import requests
-import logging
 import json
 import io
 from datetime import datetime
@@ -10,6 +9,9 @@ import time
 import random
 from collections import defaultdict
 from config import RATE_LIMIT_MIN, RATE_LIMIT_MAX
+
+from modules.utils.logger import get_logger
+logging = get_logger(__name__)
 
 class AsyncRateLimiter:
     """

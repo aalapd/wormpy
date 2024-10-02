@@ -2,12 +2,13 @@
 
 import aiohttp
 import asyncio
-import logging
 from typing import List, Dict, Optional
 import random
 import time
 from config import PROXY_TEST_URL, MAX_PROXIES, PROXY_TIMEOUT, PROXY_REFRESH_THRESHOLD, HEADERS, COUNTRY, SSL, ANONYMITY
 
+from modules.utils.logger import get_logger
+logging = get_logger(__name__)
 
 PROXY_API_URL = f"https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=10000&country={COUNTRY}&ssl={SSL}&anonymity={ANONYMITY}"
 

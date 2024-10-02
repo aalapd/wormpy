@@ -1,8 +1,10 @@
 import requests
-import logging
 import xml.etree.ElementTree as ET
 from urllib.parse import urljoin
-from .processors.url_processor import is_valid_url
+from ..processors.url_processor import is_valid_url
+
+from modules.utils.logger import get_logger
+logging = get_logger(__name__)
 
 def get_all_urls(base_url):
     sitemap_urls = parse_sitemap(base_url)

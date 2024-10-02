@@ -3,8 +3,10 @@ Module for tracking visited URLs across all scrapers.
 """
 
 import asyncio
-import logging
 from typing import Set
+
+from modules.utils.logger import get_logger
+logging = get_logger(__name__)
 
 class URLTracker:
     def __init__(self):

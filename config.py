@@ -28,7 +28,7 @@ RATE_LIMIT_MIN = 1
 RATE_LIMIT_MAX = 5
 
 # Max number of scrapers to use
-MAX_SIMULTANEOUS_SCRAPERS = 12
+MAX_SIMULTANEOUS_SCRAPERS = 6
 
 # Proxy-related settings
 PROXY_TEST_URL = "http://httpbin.org/ip"

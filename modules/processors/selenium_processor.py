@@ -2,7 +2,6 @@
 
 import os
 import sys
-import logging
 import asyncio
 import requests
 import zipfile
@@ -15,7 +14,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from config import MAX_RETRIES
 
-logger = logging.getLogger(__name__)
+from modules.utils.logger import get_logger
+logger = get_logger(__name__)
 
 GECKODRIVER_BASE_URL = "https://github.com/mozilla/geckodriver/releases/download/v0.35.0/"
 GECKODRIVER_REPO_URL = "https://github.com/mozilla/geckodriver/releases"

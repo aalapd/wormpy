@@ -8,40 +8,22 @@ and orchestrates the web scraping process.
 """
 
 import argparse
-import logging
 import asyncio
 import time
 from typing import Dict, Any, Tuple
 
 from config import MAX_SIMULTANEOUS_SCRAPERS
-from modules.website_scraper import WebsiteScraper, run_init_scraper
-from modules.utils import format_output, set_filename
-from modules.file_handler import save_output
+from modules.utils.logger import configure_logging, get_logger, log_exception
+from modules.utils.sitemap_parser import get_all_urls
+from modules.scraper import WebsiteScraper, run_init_scraper
+from modules.utils.utils import format_output, set_filename
+from modules.utils.file_handler import save_output
 from modules.processors.url_processor import (
     get_domain,
     is_valid_url,
     normalize_url,
     url_matches_base
 )
-
-def setup_logging(log_level: str) -> None:
-    """
-    Set up logging configuration.
-
-    Args:
-        log_level (str): Desired logging level.
-
-    Raises:
-        ValueError: If an invalid log level is provided.
-    """
-    numeric_level = getattr(logging, log_level.upper(), None)
-    if not isinstance(numeric_level, int):
-        raise ValueError(f'Invalid log level: {log_level}')
-    logging.basicConfig(
-        level=numeric_level,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[logging.StreamHandler()]
-    )
 
 async def run_scraping(
     base_url: str,
@@ -69,9 +51,9 @@ async def run_scraping(
         'force_scrape_method': force_scrape_method
     }
 
-    logging.info("Starting initial scraper for URL discovery.")
+    #logging.info("Starting initial scraper for URL discovery.")
     initial_results = await run_init_scraper(initial_scraper_config)
-    logging.info("Initial scraper finished. Processing results.")
+    #logging.info("Initial scraper finished. Processing results.")
 
     all_discovered_urls = set()
     for result in initial_results.values():
@@ -80,7 +62,7 @@ async def run_scraping(
             if url_matches_base(url, normalized_base_url)
         )
 
-    logging.info(f"Total URLs discovered on target URL: {len(all_discovered_urls)}")
+    #logging.info(f"Total URLs found on target URL: {len(all_discovered_urls)}")
 
     if max_depth > 0 and all_discovered_urls:
         url_batches = [
@@ -98,7 +80,7 @@ async def run_scraping(
             )
             scraper.urls_to_process = [(url, 1) for url in batch]
             scrapers.append(scraper)
-            logging.info(f"Scraper {i+1} initialized with {len(batch)} URLs")
+            #logging.info(f"Scraper {i+1} initialized with {len(batch)} URLs")
 
         results = await asyncio.gather(*(scraper.scrape() for scraper in scrapers))
 
@@ -114,6 +96,10 @@ async def run_scraping(
 
     return formatted_output, total_urls_scraped
 
+def get_sitemap(url):
+    #logging.info("Fetching sitemap...")
+    return get_all_urls(url)
+
 def main() -> None:
     """
     Main function to run the web scraper.
@@ -121,7 +107,9 @@ def main() -> None:
     start_time = time.time()
 
     parser = argparse.ArgumentParser(description="Website Scraper")
-    parser.add_argument("url", help="Base URL of the website to scrape")
+    parser.add_argument(
+        "url", 
+        help="Base URL of the website to scrape")
     parser.add_argument(
         "depth",
         type=int,
@@ -148,22 +136,29 @@ def main() -> None:
         help="Force scraping with either requests or selenium"
     )
     args = parser.parse_args()
+    
+    base_url = normalize_url(args.url)
 
     try:
-        setup_logging(args.log)
+        configure_logging(log_level=args.log)
+        logging = get_logger(__name__)
 
-        if not is_valid_url(args.url, args.url):
+        logging.info("Starting web scraping process...")
+
+        if not is_valid_url(base_url, base_url):
             raise ValueError("Invalid URL provided.")
 
         if args.depth < 0:
             raise ValueError("Depth must be greater than or equal to zero.")
 
+        #sitemap = get_sitemap(base_url)
+
         formatted_output, total_urls_scraped = asyncio.run(
-            run_scraping(args.url, args.depth, args.force, args.format)
+            run_scraping(base_url, args.depth, args.force, args.format)
         )
 
         filename = set_filename(args.format)
-        folder_name = args.savename or get_domain(normalize_url(args.url))
+        folder_name = args.savename or get_domain(base_url)
         full_filepath = save_output(formatted_output, folder_name, filename, args.format)
 
         logging.info(f"Scraping complete. Saved output to {full_filepath}.")

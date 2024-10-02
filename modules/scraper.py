@@ -1,12 +1,15 @@
-# File: modules/website_scraper.py
+# File: modules/scraper.py
 
-import logging
 import asyncio
 from selenium.common.exceptions import WebDriverException
 from .processors.url_processor import normalize_url, is_suspicious_url, extract_urls, is_valid_url, get_domain
 from .processors.content_processor import process_page
 from .processors.selenium_processor import SeleniumDriver
-from .utils import is_image_content_type, AsyncRateLimiter
+from .utils.utils import is_image_content_type, AsyncRateLimiter
+#from .utils.url_tracker import url_tracker
+
+from modules.utils.logger import get_logger
+logger = get_logger(__name__)
 
 class WebsiteScraper:
     """
@@ -32,8 +35,8 @@ class WebsiteScraper:
     def __init__(self, base_url, max_depth, force_scrape_method=None, scraper_id=0):
         self.base_url = base_url
         self.max_depth = max_depth
-        self.scraper_id = scraper_id
         self.force_scrape_method = force_scrape_method
+        self.scraper_id = scraper_id
         self.selenium_driver = None
         self.rate_limiter = AsyncRateLimiter()
         self.all_discovered_urls = set()
@@ -57,27 +60,26 @@ class WebsiteScraper:
         Returns:
             dict: A dictionary containing the scraping results.
         """
-        logging.info(f"Initializing new scraper (ID: {self.scraper_id})")
+        logger.info("Initializing new scraper (ID: %d)", self.scraper_id)
         try:
             while self.urls_to_process:
                 current_url, depth = self.urls_to_process.pop(0)
                 normalized_url = normalize_url(current_url)
                 
                 if not normalized_url.startswith(self.base_url):
-                    logging.info(f"Skipping URL not starting with base URL: {normalized_url}")
+                    logger.info("Skipping URL not starting with base URL: %s", normalized_url)
                     continue
 
                 if normalized_url in self.processed_urls or normalized_url in self.error_urls:
                     continue
 
-
                 if is_suspicious_url(current_url):
                     if is_image_content_type(current_url):
-                        logging.info(f"Scraper {self.scraper_id}: Skipping image URL: {current_url}")
+                        logger.info("Scraper %d: Skipping image URL: %s", self.scraper_id, current_url)
                         continue
 
                 try:
-                    logging.info(f"Scraper {self.scraper_id}: Attempting to process URL (depth {depth}): {current_url}")
+                    logger.info("Scraper %d: Attempting to process URL (depth %d): %s", self.scraper_id, depth, current_url)
                     domain = get_domain(current_url)
                     await self.rate_limiter.wait(domain)
                     content, content_type, extracted_text, metadata, discovered_urls = await process_page(
@@ -108,15 +110,15 @@ class WebsiteScraper:
                     
                     self.processed_urls.add(normalized_url)
                     self.all_discovered_urls.update(all_discovered_urls)
-                    logging.info(f"Scraper {self.scraper_id}: Successfully processed {current_url}")
+                    logger.info("Scraper %d: Successfully processed %s", self.scraper_id, current_url)
 
                     if depth < self.max_depth:
                         self.urls_to_process.extend((url, depth + 1) for url in sorted_urls_for_processing)
-                        logging.info(f"Scraper {self.scraper_id}: Found {len(self.urls_to_process)} URLs to process...")
+                        logger.info("Scraper %d: Found %d URLs to process...", self.scraper_id, len(self.urls_to_process))
 
                 except WebDriverException as e: # To catch Selenium exceptions and handle them appropriately
                     error_message = f"Scraper {self.scraper_id}: Selenium error processing {current_url}: {str(e)}"
-                    logging.error(error_message)
+                    logger.error(error_message)
                     self.selenium_driver.quit_selenium()  # Close the current driver
                     self.selenium_driver = None  # Reset the driver
                     # Optionally, you might want to retry this URL later
@@ -124,7 +126,7 @@ class WebsiteScraper:
 
                 except Exception as e:
                     error_message = f"Scraper {self.scraper_id}: Error processing {current_url}: {str(e)}"
-                    logging.error(error_message)
+                    logger.error(error_message)
                     self.results[normalized_url] = {
                         'content': error_message,
                     }
@@ -148,14 +150,14 @@ async def run_scrapers(scraper_configs):
     # Start with a single scraper to discover initial URLs
     initial_scraper = WebsiteScraper(**scraper_configs[0], scraper_id=0)
     initial_results = await initial_scraper.scrape()
-    logging.info("Initial scraper finished. Processing discovered URLs.")
+    logger.info("Initial scraper finished. Processing discovered URLs.")
 
     # Collect all discovered URLs from the initial scrape
     all_discovered_urls = set()
     for result in initial_results.values():
         all_discovered_urls.update(result.get('discovered_urls', []))
 
-    logging.info(f"Total URLs discovered: {len(all_discovered_urls)}")
+    logger.info("Total URLs discovered: %d", len(all_discovered_urls))
 
     # Divide discovered URLs among multiple scrapers
     url_batches = [list(all_discovered_urls)[i::len(scraper_configs)] for i in range(len(scraper_configs))]
@@ -168,7 +170,7 @@ async def run_scrapers(scraper_configs):
                                  scraper_id=i+1)
         scraper.urls_to_process = [(url, 1) for url in url_batches[i]]  # Start at depth 1 for new URLs
         tasks.append(scraper.scrape())
-        logging.info(f"Scraper {i+1} initialized with {len(url_batches[i])} URLs")
+        logger.info("Scraper %d initialized with %d URLs", i+1, len(url_batches[i]))
 
     # Run all scrapers concurrently
     results = await asyncio.gather(*tasks)
@@ -193,8 +195,3 @@ async def run_init_scraper(scraper_config):
     scraper = WebsiteScraper(**scraper_config, scraper_id=0)
     results = await scraper.scrape()
     return results
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    # Example usage
-    # asyncio.run(run_scrapers([{'base_url': 'https://example.com', 'max_depth': 2}]))
