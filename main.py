@@ -151,17 +151,16 @@ def main() -> None:
         if args.depth < 0:
             raise ValueError("Depth must be greater than or equal to zero.")
 
-        #sitemap = get_sitemap(base_url)
-
         formatted_output, total_urls_scraped = asyncio.run(
             run_scraping(base_url, args.depth, args.force, args.format)
         )
 
         filename = set_filename(args.format)
         folder_name = args.savename or get_domain(base_url)
-        full_filepath = save_output(formatted_output, folder_name, filename, args.format)
+        full_filepath, log_filepath = save_output(formatted_output, folder_name, filename, args.format)
 
         logging.info(f"Scraping complete. Saved output to {full_filepath}.")
+        logging.info(f"Log file saved to {log_filepath}.")
         logging.info(f"Total URLs scraped: {total_urls_scraped}")
 
     except Exception as e:

@@ -49,7 +49,7 @@ async def process_page(scraper_id, url, force_scrape_method=None, selenium_drive
 
         return content, content_type, extracted_text, metadata, discovered_urls
     except Exception as e:
-        logger.error("Scraper %d: Error processing %s: %s", url, str(e))
+        logger.error("Scraper %d: Error processing %s: %s", scraper_id, url, str(e))
         return None, None, None, None, []
 
 async def fetch_page(scraper_id, url, force_scrape_method=None, max_retries=MAX_RETRIES, initial_delay=INITIAL_RETRY_DELAY, selenium_driver=None):
@@ -109,7 +109,7 @@ async def fetch_page(scraper_id, url, force_scrape_method=None, max_retries=MAX_
                     if content is None:
                         raise Exception("Scraper %d: Selenium fetch failed!", scraper_id)
 
-            logger.info("Scraper %d: Successfully fetched content from URL: %s", url)
+                logger.info("Scraper %d: Successfully fetched content from URL: %s", scraper_id, url)
             return content, content_type, discovered_urls
         except (requests.RequestException, Exception) as e:
             logger.warning("Scraper %d: Error fetching content from URL %s (attempt %d/%d): %s", 
