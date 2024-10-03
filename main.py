@@ -31,7 +31,8 @@ async def run_scraping(
     base_url: str,
     max_depth: int,
     force_scrape_method: str,
-    output_format: str
+    output_format: str,
+    sitemap_urls: set
 ) -> Tuple[Dict[str, Any], int]:
     """
     Run the web scraping process.
@@ -96,6 +97,15 @@ async def run_scraping(
     else:
         formatted_output = format_output(initial_results, output_format)
         total_urls_scraped = 1
+    
+    if output_format == 'json':
+        formatted_output = {
+            "sitemap_urls": list(sitemap_urls),
+            "scraped_data": formatted_output
+        }
+    elif output_format == 'csv':
+        sitemap_csv = [["Sitemap URL"]] + [[url] for url in sitemap_urls]
+        formatted_output = sitemap_csv + [["Scraped Data"]] + formatted_output
 
     return formatted_output, total_urls_scraped
 
@@ -162,6 +172,13 @@ def main() -> None:
 
     try:
         logging.info(f"Initial scraper config: {config}")
+
+        #logging.info("Fetching sitemap...")
+        sitemap_urls = get_sitemap(base_url)
+        logging.info(f"Sitemap fetched. Total URLs in sitemap: {len(sitemap_urls)}")
+
+        #print(sitemap)
+
         logging.info("Starting web scraping process...")
 
         if not is_valid_url(base_url, base_url):
@@ -171,7 +188,7 @@ def main() -> None:
             raise ValueError("Depth must be greater than or equal to zero!")
 
         formatted_output, total_urls_scraped = asyncio.run(
-            run_scraping(base_url, args.depth, args.force, args.format)
+            run_scraping(base_url, args.depth, args.force, args.format, sitemap_urls)
         )
 
         filename = set_filename(args.format)

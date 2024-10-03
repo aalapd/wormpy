@@ -1,13 +1,15 @@
+# utils.py
+
 import requests
 import json
 import io
-from datetime import datetime
-from urllib.parse import urlparse
-
 import asyncio
 import time
 import random
+from datetime import datetime
+from urllib.parse import urlparse
 from collections import defaultdict
+from typing import Dict, Any, List, Union
 from config import RATE_LIMIT_MIN, RATE_LIMIT_MAX
 
 from modules.utils.logger import get_logger
@@ -81,6 +83,7 @@ def format_output(results, output_format):
         results (dict): Dictionary of scraped results with URLs as keys and 
                         dictionaries containing 'content', 'discovered_urls', and 'metadata' as values
         output_format (str): Desired output format ('csv' or 'json')
+        sitemap_urls (set): Set of URLs from the sitemap
 
     Returns:
         list or dict: Formatted data ready for output. For CSV, a list of lists where the first row
