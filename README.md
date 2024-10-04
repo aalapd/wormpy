@@ -1,44 +1,39 @@
+🪱
 # Wormpy
 
 ## Overview
 
-Wormpy is a Python-based web scraping tool designed to extract content from websites efficiently and respectfully. It can parse sitemaps, crawl websites up to a specified depth, and handle various content types including HTML and PDF.
-
-Please, for god's sake, make sure you use a VPN when using this!
+Wormpy is a Python-based web scraping tool designed to crawl across websites and extract their contents efficiently and respectfully. It now features a discovery mode for comprehensive website crawling, as well as a single-page scraping option. Wormpy can parse sitemaps, handle various content types including HTML and PDF, and respects server resources.
 
 Read the [tutorial](https://medium.com/@aalapdavjekar/7-lessons-i-learned-while-writing-code-with-ai-b59414181da6) on how I built the first version of this tool.
 
-## Features
+**For god's sake, make sure you use a VPN when using this!** (Get 3 months free with NordVPN by using [this link](https://refer-nordvpn.com/kwTbjBYxbud).)
+
+## New Features
+
+- Discovery mode for comprehensive website crawling
+- Single-page scraping option
+- Dynamic scraper allocation based on URL pool size
+- Improved URL pool management
+- Configurable maximum number of URLs to scrape
+
+## Existing Features
 
 - Parallel scraping with asyncio
-- Sitemap parsing (sitemap.xml, sitemap_index.xml, etc.)
-- Fallback to HTML parsing if sitemaps are unavailable
-- Recursive URL processing up to a specified depth
 - PDF content extraction
+- Sitemap parsing (sitemap.xml, sitemap_index.xml, etc.)
 - Rate limiting to respect server resources
 - Flexible logging
 - Content saved to timestamped files
 - Command-line interface for easy use
 - Image URL detection and skipping
-- Suspicious URL detection
 - Output in CSV or JSON format
 - Discovered URLs listed for each scraped page
 
 ## Requirements
 
 - Python 3.x
-- Required libraries:
-  - beautifulsoup4==4.12.3
-  - certifi==2024.7.4
-  - charset-normalizer==3.3.2
-  - idna==3.7
-  - parameterized==0.9.0
-  - PyPDF2==3.0.1
-  - PyYAML==6.0.2
-  - requests==2.32.3
-  - responses==0.25.3
-  - soupsieve==2.5
-  - urllib3==2.2.2
+- Required libraries (see requirements.txt)
 
 Install the required libraries using pip:
 
@@ -53,31 +48,33 @@ pip install -r requirements.txt
 3. Run the program with the following command:
 
 ```
-python main.py [--log LOG_LEVEL] [--savename SAVE_DIRECTORY] [--format {csv,json}] [--force {req,sel}]
+python main.py <url> [--discovery] [--log LOG_LEVEL] [--savename SAVE_DIRECTORY] [--format {csv,json}] [--force {req,sel}]
 ```
 
 Arguments:
  - `url`: Base URL of the website to scrape (required)
- - `depth`: Maximum crawling depth (required, must be a non-negative integer)
- - `--log`: Set the logging level (optional, default is INFO)
- - `--savename`: Specify the directory name to save output (optional)
+ - `--discovery`: Enable discovery mode to scrape the entire website (optional)
  - `--format`: Specify the output format, either 'csv' or 'json' (optional, default is 'json')
  - `--force`: Force scraping with either 'req' for requests or 'sel' for selenium (optional)
+ - `--log`: Set the logging level (optional, default is INFO)
+ - `--savename`: Specify the directory name to save output (optional)
 
-Example:
+Examples:
 ```
-python main.py https://www.example.com 1 --log DEBUG --savename example_scrape --format csv --force sel
+# Scrape a single page
+python main.py https://www.example.com --savename example_scrape --format csv
+
+# Scrape the entire website (discovery mode)
+python main.py https://www.example.com --discovery --log INFO --format json --force sel
 ```
 
 ## Key Components
 
 - `main.py`: Entry point of the application
-- `website_scraper.py`: Core scraping logic
-- `sitemap_parser.py`: Handles sitemap parsing
+- `scraper.py`: Core scraping logic and scraper management
 - `content_processor.py`: Processes and extracts text from HTML and PDF content
 - `url_processor.py`: Processes URLs and extracts links
-- `pdf_processor.py`: Handles PDF-specific processing (for future functionality)
-- `file_handler.py`: Manages file operations
+- `url_tracker.py`: Manages the URL pool and tracks visited URLs
 - `utils.py`: Utility functions
 - `config.py`: Configuration settings
 
@@ -95,7 +92,7 @@ Wormpy can detect and extract text from PDF files, both from local files and URL
 
 ## URL Processing
 
-- The tool now offers an option to return only URLs instead of content.
+- The tool offers both single-page and full website scraping options.
 - It detects and skips image URLs to avoid unnecessary processing.
 - Suspicious URLs are identified and handled appropriately.
 
