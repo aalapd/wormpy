@@ -14,6 +14,9 @@ HEADERS = {
     'Cache-Control': 'max-age=0',
 }
 
+# Maximum URLs to visit
+MAX_URLS_TO_VISIT = 100
+
 # Request timeout in seconds
 REQUEST_TIMEOUT = 10
 

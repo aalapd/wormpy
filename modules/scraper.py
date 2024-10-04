@@ -6,6 +6,7 @@ from .processors.url_processor import normalize_url, is_suspicious_url, extract_
 from .processors.content_processor import process_page
 from .processors.selenium_processor import SeleniumDriver
 from .utils.utils import is_image_content_type, AsyncRateLimiter
+from .utils.url_tracker import url_tracker
 #from .utils.url_tracker import url_tracker
 
 from modules.utils.logger import get_logger
@@ -73,6 +74,10 @@ class WebsiteScraper:
                 if normalized_url in self.processed_urls or normalized_url in self.error_urls:
                     continue
 
+                if await url_tracker.is_visited(normalized_url):
+                    logger.info("Skipping already visited URL: %s", normalized_url)
+                    continue
+
                 if is_suspicious_url(current_url):
                     if is_image_content_type(current_url):
                         logger.info("Scraper %d: Skipping image URL: %s", self.scraper_id, current_url)
@@ -112,6 +117,9 @@ class WebsiteScraper:
                     self.all_discovered_urls.update(all_discovered_urls)
                     logger.info("Scraper %d: Successfully processed %s", self.scraper_id, current_url)
 
+                    await url_tracker.mark_visited(normalized_url)
+                    logger.info("Marked URL as visited: %s", normalized_url)
+
                     if depth < self.max_depth:
                         self.urls_to_process.extend((url, depth + 1) for url in sorted_urls_for_processing)
                         logger.info("Scraper %d: Found %d URLs to process...", self.scraper_id, len(self.urls_to_process))
@@ -121,7 +129,7 @@ class WebsiteScraper:
                     logger.error(error_message)
                     self.selenium_driver.quit_selenium()  # Close the current driver
                     self.selenium_driver = None  # Reset the driver
-                    # Optionally, you might want to retry this URL later
+                    # Optionally, to retry this URL later
                     # self.urls_to_process.append((current_url, depth))
 
                 except Exception as e:

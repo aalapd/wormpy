@@ -20,6 +20,7 @@ from modules.utils.sitemap_parser import get_all_urls
 from modules.scraper import WebsiteScraper, run_init_scraper
 from modules.utils.utils import format_output, set_filename
 from modules.utils.file_handler import save_output
+from modules.utils.url_tracker import url_tracker
 from modules.processors.url_processor import (
     get_domain,
     is_valid_url,
@@ -196,6 +197,8 @@ def main() -> None:
         full_filepath = save_output(formatted_output, folder_name, filename, args.format)
 
         logging.info(f"Scraping complete. Saved output to {full_filepath}.")
+        logging.info(f"Visited URLs: {url_tracker.visited_urls}")
+        logging.info(f"Visited URL count: {len(url_tracker.visited_urls)}")
         logging.info(f"Total URLs scraped: {total_urls_scraped}")
 
     except Exception as e:
