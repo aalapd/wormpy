@@ -14,8 +14,12 @@ HEADERS = {
     'Cache-Control': 'max-age=0',
 }
 
-# Maximum URLs to visit
-MAX_URLS_TO_VISIT = 100
+# Maximum URLs to visit (for discovery mode)
+MAX_URLS_TO_SCRAPE = 100
+
+# URL Pool configurations
+MAX_POOL_SIZE = 500  # Maximum number of URLs in the pool
+URL_RETRY_LIMIT = 3  # Number of times to retry a failed URL
 
 # Request timeout in seconds
 REQUEST_TIMEOUT = 10

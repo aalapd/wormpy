@@ -74,7 +74,7 @@ def configure_logging(
             handler.addFilter(sensitive_filter)
 
     # Log the configuration
-    root_logger.info(f"Logging configured. Level: {log_level}, File: {log_file if log_file else 'None'}")
+    root_logger.debug(f"Logging configured. Level: {log_level}, File: {log_file if log_file else 'None'}")
 
 def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)

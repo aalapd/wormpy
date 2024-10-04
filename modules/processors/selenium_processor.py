@@ -15,7 +15,7 @@ from selenium.webdriver.common.by import By
 from config import MAX_RETRIES
 
 from modules.utils.logger import get_logger
-logger = get_logger(__name__)
+logging = get_logger(__name__)
 
 GECKODRIVER_BASE_URL = "https://github.com/mozilla/geckodriver/releases/download/v0.35.0/"
 GECKODRIVER_REPO_URL = "https://github.com/mozilla/geckodriver/releases"
@@ -55,7 +55,7 @@ class SeleniumDriver:
             driver_url = f"{GECKODRIVER_BASE_URL}geckodriver-v0.35.0-macos.tar.gz"
             driver_name = "geckodriver"
         else:
-            logger.error("Unsupported operating system")
+            logging.error("Unsupported operating system")
             return False
 
         try:
@@ -82,11 +82,11 @@ class SeleniumDriver:
             if not sys.platform.startswith('win'):
                 os.chmod(self.driver_path, 0o755)
 
-            logger.info(f"Successfully downloaded geckodriver to {self.driver_path}")
+            logging.info(f"Successfully downloaded geckodriver to {self.driver_path}")
             return True
         except Exception as e:
-            logger.error(f"Error downloading geckodriver: {str(e)}")
-            logger.error(f"Please download geckodriver manually from {GECKODRIVER_REPO_URL} "
+            logging.error(f"Error downloading geckodriver: {str(e)}")
+            logging.error(f"Please download geckodriver manually from {GECKODRIVER_REPO_URL} "
                          f"and save it to {self.driver_path}")
             return False
 
@@ -166,7 +166,7 @@ class SeleniumDriver:
                             await asyncio.sleep(scroll_pause)
                             continue
                         except Exception as e:
-                            logger.debug(f"No 'Load More' button found or error clicking it: {str(e)}")
+                            logging.debug(f"No 'Load More' button found or error clicking it: {str(e)}")
                             break
                     last_height = new_height
 
@@ -191,7 +191,7 @@ class SeleniumDriver:
                 if isinstance(page_source, bytes):
                     page_source = page_source.decode('utf-8', errors='ignore')
                 elif page_source is None:
-                    logger.error(f"Failed to retrieve page source for {url}")
+                    logging.error(f"Failed to retrieve page source for {url}")
                     return None, None, []
 
                 discovered_urls = await asyncio.get_event_loop().run_in_executor(
@@ -202,10 +202,10 @@ class SeleniumDriver:
                 return page_source, content_type, discovered_urls
             except Exception as e:
                 if attempt < MAX_RETRIES - 1:
-                    logger.warning(f"Attempt {attempt + 1} failed. Retrying...")
+                    logging.warning(f"Attempt {attempt + 1} failed. Retrying...")
                     self.quit_selenium()  # Close the current driver
                     self.driver = None    # Reset the driver
                     await asyncio.sleep(3)  # Wait before retrying
                 else:
-                    logger.error(f"All attempts failed for {url}: {str(e)}")
+                    logging.error(f"All attempts failed for {url}: {str(e)}")
                     return None, None, []

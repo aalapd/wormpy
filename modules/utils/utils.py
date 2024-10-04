@@ -11,6 +11,8 @@ from collections import defaultdict
 from config import RATE_LIMIT_MIN, RATE_LIMIT_MAX
 
 from modules.utils.logger import get_logger
+from modules.utils.url_tracker import url_tracker
+
 logging = get_logger(__name__)
 
 class AsyncRateLimiter:
@@ -47,6 +49,14 @@ class AsyncRateLimiter:
         if elapsed < delay:
             await asyncio.sleep(delay - elapsed)
         self.last_request_times[domain] = time.time()
+
+async def get_scraping_stats():
+    """Get current scraping statistics."""
+    return {
+        'urls_in_pool': await url_tracker.get_pool_size(),
+        'urls_visited': await url_tracker.get_visited_count(),
+        'is_pool_empty': await url_tracker.is_pool_empty(),
+    }
 
 def get_pdf_data(file_path_or_url):
     pdf_data = None     

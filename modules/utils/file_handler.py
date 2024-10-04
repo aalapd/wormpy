@@ -3,10 +3,10 @@
 import os
 import csv
 import json
-import logging
-from datetime import datetime
 
 from modules.utils.logger import get_logger
+logging = get_logger(__name__)
+
 
 def save_output(data, domain, filename, output_format):
     """
@@ -45,7 +45,7 @@ def save_output(data, domain, filename, output_format):
         else:
             raise ValueError(f"Invalid output format: {output_format}")
         
-        logging.info(f"Successfully saved output to {full_path}")
+        logging.debug(f"Successfully saved output to {full_path}")
         return full_path
     except IOError as e:
         logging.error(f"Error writing to file {filename}: {e}")
