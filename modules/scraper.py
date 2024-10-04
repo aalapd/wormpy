@@ -2,12 +2,11 @@
 
 import asyncio
 from selenium.common.exceptions import WebDriverException
-from .processors.url_processor import normalize_url, is_suspicious_url, extract_urls, is_valid_url, get_domain
+from .processors.url_processor import normalize_url, is_suspicious_url, get_domain
 from .processors.content_processor import process_page
 from .processors.selenium_processor import SeleniumDriver
 from .utils.utils import is_image_content_type, AsyncRateLimiter
 from .utils.url_tracker import url_tracker
-#from .utils.url_tracker import url_tracker
 
 from modules.utils.logger import get_logger
 logger = get_logger(__name__)
@@ -142,6 +141,7 @@ class WebsiteScraper:
         finally:
             if self.selenium_driver:
                 self.selenium_driver.quit_selenium()
+                logger.info("Scraper %d: Scraper terminated.", self.scraper_id)
 
         return self.results
 

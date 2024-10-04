@@ -6,10 +6,8 @@ import io
 import asyncio
 import time
 import random
-from datetime import datetime
 from urllib.parse import urlparse
 from collections import defaultdict
-from typing import Dict, Any, List, Union
 from config import RATE_LIMIT_MIN, RATE_LIMIT_MAX
 
 from modules.utils.logger import get_logger
@@ -110,7 +108,6 @@ def format_output(results, output_format):
     else:
         raise ValueError(f"Invalid output format: {output_format}")
     
-def set_filename(output_format):
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{timestamp}.{output_format}"
+def set_filename(output_format, now):
+    filename = f"scrape_{now}.{output_format}"
     return filename

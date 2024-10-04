@@ -7,7 +7,6 @@ import sys
 from logging.handlers import RotatingFileHandler
 from functools import wraps
 from typing import Any, Callable, Dict, Optional
-import asyncio
 
 class SimpleFormatter(logging.Formatter):
     def __init__(self):

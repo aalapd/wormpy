@@ -165,7 +165,8 @@ def main() -> None:
     }
 
     # Set up logging earlier
-    log_filename = f"scrape_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    now = datetime.now().strftime('%Y%m%d_%H%M%S')
+    log_filename = f"scrape_log_{now}.log"
     log_filepath = os.path.join('scrapes', config['save_directory'], log_filename)
 
     configure_logging(log_level=args.log, log_file=log_filepath, use_json=False)
@@ -192,7 +193,7 @@ def main() -> None:
             run_scraping(base_url, args.depth, args.force, args.format, sitemap_urls)
         )
 
-        filename = set_filename(args.format)
+        filename = set_filename(args.format, now)
         folder_name = args.savename or get_domain(base_url)
         full_filepath = save_output(formatted_output, folder_name, filename, args.format)
 
