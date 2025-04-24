@@ -26,11 +26,14 @@ from modules.processors.url_processor import (
     normalize_url,
 )
 
+
 async def run_scraping(
     base_url: str,
     discovery_mode: bool,
     force_scrape_method: str,
     output_format: str,
+    include_urls: bool = False,
+    essential_metadata_only: bool = True,
 ) -> Tuple[Dict[str, Any], int]:
     """
     Run the web scraping process.
@@ -40,6 +43,8 @@ async def run_scraping(
         discovery_mode (bool): Whether to scrape the entire site or just the base URL.
         force_scrape_method (str): Method to force for scraping ('req' or 'sel').
         output_format (str): The desired output format ('csv' or 'json').
+        include_urls (bool): Whether to include discovered URLs in the output.
+        essential_metadata_only (bool): Whether to include only essential metadata fields.
 
     Returns:
         Tuple[Dict[str, Any], int]: A tuple containing the formatted output
@@ -59,7 +64,14 @@ async def run_scraping(
 
     results = await run_scrapers(base_url, discovery_mode, force_scrape_method)
 
-    formatted_output = format_output(results, output_format)
+    # Pass both include_urls and essential_metadata_only parameters
+    formatted_output = format_output(
+        results, 
+        output_format, 
+        include_urls=include_urls,
+        essential_metadata_only=essential_metadata_only
+    )
+    
     total_urls_scraped = len(results)
     
     if output_format == 'json':
@@ -106,6 +118,16 @@ def main() -> None:
         choices=['req', 'sel'],
         help="Force scraping with either requests or selenium"
     )
+    parser.add_argument(
+        "--include-urls",
+        action="store_true",
+        help="Include discovered URLs in the output (useful for debugging, but not recommended for LLM context)"
+    )
+    parser.add_argument(
+        "--full-metadata",
+        action="store_true",
+        help="Include all metadata fields (by default, only essential fields like url, title, and content_type are included)"
+    )
     args = parser.parse_args()
     
     base_url = normalize_url(args.url)
@@ -118,6 +140,8 @@ def main() -> None:
         "log_level": args.log,
         "output_format": args.format,
         "save_directory": args.savename or get_domain(base_url),
+        "include_urls": args.include_urls,
+        "essential_metadata_only": not args.full_metadata,
     }
 
     # Set up logging
@@ -137,7 +161,14 @@ def main() -> None:
         logging.info("Starting web scraping process...")
 
         formatted_output, total_urls_scraped = asyncio.run(
-            run_scraping(base_url, args.discovery, args.force, args.format)
+            run_scraping(
+                base_url, 
+                args.discovery, 
+                args.force, 
+                args.format, 
+                include_urls=args.include_urls,
+                essential_metadata_only=not args.full_metadata
+            )
         )
 
         filename = set_filename(args.format, now)

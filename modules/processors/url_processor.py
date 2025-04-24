@@ -53,7 +53,8 @@ def is_valid_url(url: str, base_url: str) -> bool:
 
 def normalize_url(url: str) -> str:
     """
-    Normalize a URL by removing trailing slashes and standardizing the scheme.
+    Normalize a URL by removing trailing slashes and standardizing the scheme
+    while preserving case in the path component.
 
     Args:
         url (str): The URL to normalize.
@@ -61,10 +62,25 @@ def normalize_url(url: str) -> str:
     Returns:
         str: The normalized URL.
     """
-    parsed = urlparse(url.lower())
-    scheme = parsed.scheme or 'https'  # Default to https if no scheme is provided
-    path = parsed.path.rstrip('/')  # Remove trailing slash from path
-    return f"{scheme}://{parsed.netloc}{path}"
+    parsed = urlparse(url)
+    # Normalize scheme (case-insensitive)
+    scheme = parsed.scheme.lower() or 'https'  # Default to https if no scheme is provided
+    # Normalize netloc (domain is case-insensitive)
+    netloc = parsed.netloc.lower()
+    # Preserve case in path but remove trailing slash
+    path = parsed.path.rstrip('/')
+    # Preserve query and fragment
+    query = parsed.query
+    fragment = parsed.fragment
+    
+    # Reconstruct the URL
+    normalized_url = f"{scheme}://{netloc}{path}"
+    if query:
+        normalized_url += f"?{query}"
+    if fragment:
+        normalized_url += f"#{fragment}"
+    
+    return normalized_url
 
 def url_matches_base(url: str, base_url: str) -> bool:
     """

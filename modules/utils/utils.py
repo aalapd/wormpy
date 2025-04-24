@@ -83,7 +83,7 @@ def is_image_content_type(url):
         logging.error(f"Error checking content type for {url}")
         return False
 
-def format_output(results, output_format):
+def format_output(results, output_format, include_urls=False, essential_metadata_only=True):
     """
     Format the scraped results according to the specified output format.
 
@@ -91,7 +91,8 @@ def format_output(results, output_format):
         results (dict): Dictionary of scraped results with URLs as keys and 
                         dictionaries containing 'content', 'discovered_urls', and 'metadata' as values
         output_format (str): Desired output format ('csv' or 'json')
-        sitemap_urls (set): Set of URLs from the sitemap
+        include_urls (bool, optional): Whether to include discovered URLs in the output. Defaults to False.
+        essential_metadata_only (bool, optional): Whether to include only essential metadata. Defaults to True.
 
     Returns:
         list or dict: Formatted data ready for output. For CSV, a list of lists where the first row
@@ -101,19 +102,46 @@ def format_output(results, output_format):
         ValueError: If an invalid output format is specified
     """
     sorted_results = dict(sorted(results.items()))
+    
+    # Filter metadata if requested
+    if essential_metadata_only:
+        for url, data in sorted_results.items():
+            if 'metadata' in data:
+                # Keep only essential metadata fields
+                essential_fields = ['url', 'title', 'content_type']
+                data['metadata'] = {k: v for k, v in data['metadata'].items() if k in essential_fields}
 
     if output_format == 'csv':
-        csv_data = [['URL', 'Content', 'Discovered URLs', 'Metadata']]
-        for url, data in sorted_results.items():
-            metadata_str = json.dumps(data.get('metadata', {}))
-            csv_data.append([
-                url, 
-                data['content'], 
-                ', '.join(data['discovered_urls']),
-                metadata_str
-            ])
+        if include_urls:
+            csv_data = [['URL', 'Content', 'Discovered URLs', 'Metadata']]
+            for url, data in sorted_results.items():
+                metadata_str = json.dumps(data.get('metadata', {}))
+                csv_data.append([
+                    url, 
+                    data['content'], 
+                    ', '.join(data.get('discovered_urls', [])),
+                    metadata_str
+                ])
+        else:
+            csv_data = [['URL', 'Content', 'Metadata']]
+            for url, data in sorted_results.items():
+                metadata_str = json.dumps(data.get('metadata', {}))
+                csv_data.append([
+                    url, 
+                    data['content'],
+                    metadata_str
+                ])
         return csv_data
     elif output_format == 'json':
+        if not include_urls:
+            # Create a copy without the discovered_urls for each entry
+            clean_results = {}
+            for url, data in sorted_results.items():
+                clean_results[url] = {
+                    'metadata': data.get('metadata', {}),
+                    'content': data['content']
+                }
+            return clean_results
         return sorted_results
     else:
         raise ValueError(f"Invalid output format: {output_format}")
